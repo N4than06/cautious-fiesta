@@ -43,8 +43,8 @@ def bones():
         dict(name="overheat", pos=(0, 2.10, G(1.30)), parent="chassis"),
         dict(name="petrolcap", pos=(-1.0, -1.08, G(1.27)), parent="chassis"),
         dict(name="petroltank", pos=(0.55, -1.25, G(0.45)), parent="chassis"),
-        dict(name="exhaust", pos=(-0.60, -2.92, G(0.40)), parent="chassis", rot=Matrix.Rotation(math.pi, 3, "Z")),
-        dict(name="exhaust_2", pos=(0.60, -2.92, G(0.40)), parent="chassis", rot=Matrix.Rotation(math.pi, 3, "Z")),
+        dict(name="exhaust", pos=(-0.60, -2.63, G(0.33)), parent="chassis", rot=Matrix.Rotation(math.pi, 3, "Z")),
+        dict(name="exhaust_2", pos=(0.60, -2.63, G(0.33)), parent="chassis", rot=Matrix.Rotation(math.pi, 3, "Z")),
         dict(name="headlight_l", pos=(-0.80, 2.80, G(1.23)), parent="chassis"),
         dict(name="headlight_r", pos=(0.80, 2.80, G(1.23)), parent="chassis"),
         dict(name="indicator_lf", pos=(-0.95, 2.76, G(1.22)), parent="chassis"),
@@ -161,9 +161,11 @@ def underbody(mb):
 
 
 def exhaust_tips(mb):
+    """Factory 6.2L AT4X: dual exits tucked behind the rear bumper, turned down -- not visible from behind
+    (photos 03/04, kelley_005, royal_004)."""
     for s in (-1, 1):
-        mb.cylinder((s * 0.60, -2.76, G(0.40)), (s * 0.60, -2.93, G(0.40)), 0.05, "chrome", "misc_b", seg=18)
-        mb.cylinder((s * 0.60, -2.928, G(0.40)), (s * 0.60, -2.80, G(0.40)), 0.042, "black", "misc_b", seg=18)
+        mb.tube([(s * 0.60, -2.10, G(0.42)), (s * 0.60, -2.50, G(0.41)), (s * 0.60, -2.60, G(0.38)),
+                 (s * 0.60, -2.63, G(0.33))], 0.038, "black", "misc_b", seg=14)
 
 
 def interior(mb):
