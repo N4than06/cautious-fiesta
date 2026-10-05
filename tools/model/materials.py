@@ -84,4 +84,5 @@ SPEC = {
     "badge_gmc": _m("vehicle_badges", "at4x_badge_gmc"),
     "badge_at4x": _m("vehicle_badges", "at4x_badge_at4x"),
     "badge_sierra": _m("vehicle_badges", "at4x_badge_sierra"),
+    "badge_v8": _m("vehicle_badges", "at4x_badge_v8"),
 }

@@ -38,7 +38,7 @@ LOOK = {
     "tire": ("at4x_tire", None, 0.0, 0.85, 0),
     "sidewall": ("at4x_sidewall", None, 0.0, 0.8, 0),
     "sidewall_rwl": ("at4x_sidewall_rwl", None, 0.0, 0.8, 0),
-    "rim": (None, (0.03, 0.03, 0.035), 0.5, 0.35, 0),
+    "rim": (None, (0.012, 0.012, 0.014), 0.3, 0.12, 0),
     "rim_black": (None, (0.02, 0.02, 0.02), 0.3, 0.4, 0),
     "glass": (None, (0.015, 0.018, 0.02), 0.0, 0.02, 0),
     "glass_in": (None, (0.015, 0.018, 0.02), 0.0, 0.02, 0),
@@ -52,9 +52,10 @@ LOOK = {
     "trim": ("at4x_plastic", None, 0.0, 0.6, 0),
     "dash": ("at4x_dash", None, 0.0, 0.4, 1.0),
     "screen": ("at4x_screen", None, 0.0, 0.3, 1.0),
-    "badge_gmc": ("at4x_badge_gmc", None, 0.3, 0.3, 0),
-    "badge_at4x": ("at4x_badge_at4x", None, 0.3, 0.3, 0),
-    "badge_sierra": ("at4x_badge_sierra", None, 0.3, 0.3, 0),
+    "badge_gmc": ("at4x_badge_gmc", None, 0.8, 0.2, 0),
+    "badge_at4x": ("at4x_badge_at4x", None, 0.8, 0.2, 0),
+    "badge_sierra": ("at4x_badge_sierra", None, 0.8, 0.2, 0),
+    "badge_v8": ("at4x_badge_v8", None, 0.3, 0.3, 0),
 }
 
 
@@ -125,7 +126,7 @@ def build_scene(tex_dir, paint_rgb, wheel_style="at4x", extra_builders=()):
     return obj, mats
 
 
-def setup_render(res=(1600, 900), samples=48):
+def setup_render(res=(1600, 900), samples=48, studio="grey"):
     sc = bpy.context.scene
     sc.render.engine = "CYCLES"
     sc.cycles.device = "CPU"
@@ -144,8 +145,12 @@ def setup_render(res=(1600, 900), samples=48):
     mapn = world.node_tree.nodes.new("ShaderNodeMapping")
     mapn.inputs["Rotation"].default_value = (0, math.radians(-90), 0)
     ramp = world.node_tree.nodes.new("ShaderNodeValToRGB")
-    ramp.color_ramp.elements[0].color = (0.30, 0.31, 0.33, 1)
-    ramp.color_ramp.elements[1].color = (0.95, 0.96, 0.98, 1)
+    if studio == "white":
+        ramp.color_ramp.elements[0].color = (0.55, 0.56, 0.58, 1)
+        ramp.color_ramp.elements[1].color = (1.6, 1.6, 1.62, 1)
+    else:
+        ramp.color_ramp.elements[0].color = (0.30, 0.31, 0.33, 1)
+        ramp.color_ramp.elements[1].color = (0.95, 0.96, 0.98, 1)
     nt = world.node_tree
     nt.links.new(coord.outputs["Generated"], mapn.inputs["Vector"])
     nt.links.new(mapn.outputs["Vector"], grad.inputs["Vector"])
@@ -157,7 +162,8 @@ def setup_render(res=(1600, 900), samples=48):
     g = bpy.context.object
     gm = bpy.data.materials.new("ground")
     gm.use_nodes = True
-    gm.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.18, 0.18, 0.18, 1)
+    gm.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (
+        (0.75, 0.75, 0.76, 1) if studio == "white" else (0.18, 0.18, 0.18, 1))
     gm.node_tree.nodes["Principled BSDF"].inputs["Roughness"].default_value = 0.9
     g.data.materials.append(gm)
     sun = bpy.data.lights.new("sun", "SUN")
@@ -200,6 +206,33 @@ VIEWS = {
     "top": ((0.01, 0.0, 13.0), (0, 0, 0), 45),
 }
 
+# Approximate cameras of the dealer reference photos (1024x768): name -> (location, target, lens)
+PHOTO_CAMS = {
+    "02": ((8.6, 1.9, 0.15), (0.0, 0.15, -0.05), 38),
+    "06": ((-5.6, 6.6, 0.05), (0.0, 0.25, -0.05), 32),
+    "01": ((6.3, 5.2, 0.25), (0.0, 0.15, -0.05), 32),
+    "03": ((5.0, -7.2, 1.15), (0.0, -0.55, -0.1), 32),
+    "04": ((-6.4, -6.0, 0.35), (0.0, -0.4, -0.05), 32),
+}
+
+
+def compare(out, photo_dir, keys):
+    from PIL import Image
+    sc = bpy.context.scene
+    sc.render.resolution_x, sc.render.resolution_y = 1024, 768
+    for k in keys:
+        loc, tgt, lens = PHOTO_CAMS[k]
+        path = os.path.join(out, f"render_{k}.png")
+        shoot(path, loc, tgt, lens)
+        a = Image.open(os.path.join(photo_dir, f"AT4X_{k}.jpg")).convert("RGB").resize((1024, 768))
+        b = Image.open(path).convert("RGB")
+        c = Image.new("RGB", (2048, 768), "white")
+        c.paste(a, (0, 0))
+        c.paste(b, (1024, 0))
+        c.save(os.path.join(out, f"compare_{k}.jpg"), quality=90)
+        print("compared", k, flush=True)
+
+
 if __name__ == "__main__":
     out = sys.argv[1]
     rgb = (0.06, 0.065, 0.07)
@@ -210,7 +243,11 @@ if __name__ == "__main__":
     tex_png = os.path.join(out, "_tex")
     textures.write_all(os.path.join(out, "_dds"), tex_png)
     build_scene(tex_png, rgb)
-    setup_render(samples=samples)
+    studio = "white" if "--white" in sys.argv else "grey"
+    setup_render(samples=samples, studio=studio)
+    if "--compare" in sys.argv:
+        compare(out, sys.argv[sys.argv.index("--compare") + 1], sys.argv[sys.argv.index("--compare") + 2].split(","))
+        views = []
     for v in views:
         loc, tgt, lens = VIEWS[v]
         shoot(os.path.join(out, f"at4x_{v}.png"), loc, tgt, lens)

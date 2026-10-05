@@ -113,16 +113,43 @@ def plate(w=256, h=128):
     return img
 
 
+def _lettering(text, w, h, fill, stroke, accent=None, size=None):
+    img = Image.new("RGBA", (w * 2, h * 2), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    font = ImageFont.load_default(size=size or int(h * 1.5))
+    d.text((w, h), text, font=font, fill=fill, anchor="mm", stroke_width=3, stroke_fill=stroke)
+    bbox = img.getbbox()
+    out = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    if bbox:
+        crop = img.crop(bbox).resize((w - 4, h - 4), Image.LANCZOS)
+        out.paste(crop, (2, 2))
+    return out
+
+
 def badge_at4x(w=256, h=64):
-    img = Image.new("RGBA", (w, h), (14, 14, 16, 255))
-    _text(img, (w / 2 - 20, h / 2 + 2), "AT4", 50, (215, 215, 220, 255))
-    _text(img, (w / 2 + 62, h / 2 + 2), "X", 54, (200, 20, 26, 255))
+    """AT4X: chrome letters, red-accented 4."""
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    left = _lettering("AT", w // 2, h, (205, 207, 212, 255), (90, 92, 96, 255))
+    four = _lettering("4", w // 4, h, (200, 22, 30, 255), (120, 10, 14, 255))
+    x = _lettering("X", w // 4, h, (205, 207, 212, 255), (90, 92, 96, 255))
+    img.paste(left, (0, 0))
+    img.paste(four, (w // 2, 0))
+    img.paste(x, (3 * w // 4, 0))
     return img
 
 
 def badge_sierra(w=512, h=64):
-    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    _text(img, (w / 2, h / 2), "S I E R R A", 48, (20, 20, 22, 255))
+    return _lettering("SIERRA", w, h, (200, 202, 208, 255), (80, 82, 86, 255))
+
+
+def badge_v8(w=256, h=64):
+    img = Image.new("RGBA", (w, h), (18, 18, 20, 255))
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle([1, 1, w - 2, h - 2], radius=14, outline=(190, 192, 196, 255), width=4)
+    t = _lettering("6.2L", w // 2 - 16, h - 20, (205, 30, 36, 255), (110, 10, 14, 255))
+    v = _lettering("V8", w // 2 - 40, h - 20, (205, 207, 212, 255), (90, 92, 96, 255))
+    img.paste(t, (12, 10), t)
+    img.paste(v, (w // 2 + 20, 10), v)
     return img
 
 
@@ -198,6 +225,7 @@ def all_textures():
         "at4x_titanium": grain((68, 78, 92, 255), 13, amp=6),
         "at4x_badge_at4x": badge_at4x(),
         "at4x_badge_sierra": badge_sierra(),
+        "at4x_badge_v8": badge_v8(),
         "at4x_dash": dash(),
         "at4x_screen": screen(),
         "at4x_engine_cover": engine_cover(),
