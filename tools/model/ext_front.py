@@ -467,22 +467,26 @@ def shark_fin(mb):
     """Roof shark-fin antenna right behind the windshield header, seated on the roof crown (photos consumer_006, 06):
     low rounded nose, rising to ~6 cm, rounded rear face."""
     from ext_cab import _roof_zg     # lazy: the cab module owns the roof surface
-    y0, y1 = 0.735, 0.585            # nose / tail
+    y0, y1 = 0.745, 0.570            # nose / tail (~17.5 cm long, ~7 cm wide, ~6 cm tall)
     rings = []
-    nr = 14
+    nr = 16
     for k in range(nr + 1):
         t = k / nr
         y = y0 + (y1 - y0) * t
-        # side view: nose rises along a convex curve, tail rolls down steeply; plan: teardrop
-        h = 0.064 * math.sin(min(t, 0.999) * math.pi * 0.5) ** 1.15 * (1.0 - smoothstep(0.86, 1.0, t) * 0.72)
-        w = 0.034 * math.sin(min(t, 0.999) * math.pi * 0.5) ** 0.7 * (1.0 - smoothstep(0.80, 1.0, t) * 0.45)
-        h, w = max(h, 0.004), max(w, 0.004)
+        # side view: convex nose rising to the top at ~80 %, rounded steep tail; plan: teardrop
+        u = min(t / 0.80, 1.0)
+        h = 0.060 * (1.0 - (1.0 - u) ** 2) ** 0.75
+        h *= 1.0 - 0.75 * smoothstep(0.84, 1.0, t) ** 1.4
+        w = 0.035 * (1.0 - (1.0 - min(t / 0.70, 1.0)) ** 2) ** 0.6
+        w *= 1.0 - 0.45 * smoothstep(0.80, 1.0, t)
+        h, w = max(h, 0.003), max(w, 0.004)
         ring = []
-        for a in range(13):
-            ang = math.pi * a / 12
-            x = w * math.cos(ang)
+        for a in range(17):
+            ang = math.pi * a / 16
+            c, sn = math.cos(ang), math.sin(ang)
+            x = w * math.copysign(abs(c) ** 0.75, c)
             zb = _roof_zg(x, y) - 0.003
-            ring.append((x, y, G(zb + h * math.sin(ang) ** 0.85)))
+            ring.append((x, y, G(zb + h * sn ** 0.6)))
         for x in (-w * 0.6, 0.0, w * 0.6):
             ring.append((x, y, G(_roof_zg(x, y) - 0.004)))
         rings.append(ring)
