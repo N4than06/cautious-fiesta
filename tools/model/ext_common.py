@@ -11,11 +11,6 @@ from surf import densify, panel, pchip, point_in_poly, smoothstep
 IN_X = Vector((-1, 0, 0))
 
 
-REAR_LIFT = ZG_RAIL - 1.445        # tailgate / lamps / rear bumper were authored for a 1.445 m rail
-FRONT_DROP = -0.04                 # lamps / grille authored for a slightly higher hood nose
-MIRROR_DROP = -0.12
-
-
 def mirror_side(mb, fn):
     fn(mb)
     with mb.mirrored():
@@ -58,9 +53,18 @@ def _rounded_loop(pts, r):
     return rounded_poly(pts[-1:] + pts + pts[:1], r, seg=5)[1:-1]
 
 
+# Factory arch moulding section (d = distance outwards from the opening edge, dx = stand-off from the body side):
+# ~70 mm wide, two-tier crowned face standing ~29 mm proud, rounded inner lip rolling into the wheel opening and a
+# rounded outer edge sitting on the paint (same section as the rear moulding in ext_rear).
+FLARE_SEC = [(-0.003, -0.050), (-0.006, -0.016), (-0.005, 0.004), (-0.002, 0.015), (0.004, 0.023), (0.012, 0.0275),
+             (0.022, 0.0290), (0.036, 0.0285), (0.041, 0.0270), (0.044, 0.0235), (0.050, 0.0215), (0.058, 0.0185),
+             (FLARE_W - 0.006, 0.0140), (FLARE_W - 0.002, 0.0090), (FLARE_W, 0.0040), (FLARE_W - 0.001, -0.0005),
+             (FLARE_W - 0.010, -0.004), (0.010, -0.006)]
+
+
 def arch_flare(m, cy, shape, x_fn):
-    """Factory black arch moulding (misc_d) following a wheel opening."""
-    pts = arch_outline(cy, shape)
+    """Factory black arch moulding (misc_d) following a wheel opening, with rounded ends."""
+    pts = densify(arch_outline(cy, shape), 0.035, closed=False)
     rings = []
     for i, (y, z) in enumerate(pts):
         a = Vector(pts[max(i - 1, 0)])
@@ -69,10 +73,17 @@ def arch_flare(m, cy, shape, x_fn):
         n = Vector((t.y, -t.x))
         if n.dot(Vector((y - cy, z - 0.5))) < 0:
             n = -n
-        xb = x_fn(y + n.x * 0.035, z + n.y * 0.035)
-        sec = [(0.0, -0.04), (0.0, 0.018), (0.02, 0.028), (0.048, 0.022), (FLARE_W, 0.004),
-               (FLARE_W + 0.002, -0.008), (0.04, -0.035)]
-        rings.append([(xb + dx, y + n.x * d, G(z + n.y * d)) for d, dx in sec])
+        ring = []
+        for d, dx in FLARE_SEC:
+            yy, zz = y + n.x * d, z + n.y * d
+            ring.append((x_fn(yy, zz) + dx, yy, G(zz)))
+        rings.append(ring)
+
+    def shrink(ring, k, dz):
+        c = sum((Vector(p) for p in ring), Vector()) / len(ring)
+        return [tuple(c + (Vector(p) - c) * k + Vector((0, 0, dz))) for p in ring]
+    rings = [shrink(rings[0], 0.55, -0.006), shrink(rings[0], 0.85, -0.003)] + rings + \
+        [shrink(rings[-1], 0.85, -0.003), shrink(rings[-1], 0.55, -0.006)]
     m.loft(rings, "plastic", "misc_d")
 
 
