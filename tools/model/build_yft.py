@@ -37,7 +37,7 @@ PHYSICS = {
     "door_dside_f": ("CAR_METAL", 30.0, False), "door_pside_f": ("CAR_METAL", 30.0, False),
     "door_dside_r": ("CAR_METAL", 28.0, False), "door_pside_r": ("CAR_METAL", 28.0, False),
     "bonnet": ("CAR_METAL", 22.0, False), "boot": ("CAR_METAL", 30.0, False),
-    "bumper_f": ("PLASTIC", 18.0, False), "bumper_r": ("CAR_METAL", 20.0, False),
+    "bumper_f": ("CAR_PLASTIC", 18.0, False), "bumper_r": ("CAR_METAL", 20.0, False),
     "windscreen": ("CAR_GLASS_MEDIUM", 10.0, True), "windscreen_r": ("CAR_GLASS_MEDIUM", 6.0, True),
     "window_lf": ("CAR_GLASS_WEAK", 4.0, True), "window_rf": ("CAR_GLASS_WEAK", 4.0, True),
     "window_lr": ("CAR_GLASS_WEAK", 4.0, True), "window_rr": ("CAR_GLASS_WEAK", 4.0, True),
@@ -46,9 +46,13 @@ CHASSIS_MASS = 2300.0
 WHEEL_MASS = 35.0
 
 
-def decimated(mesh, ratio, name):
-    """Collapse-decimated copy of `mesh` (keeps UVs, colours, materials and vertex weights)."""
+def decimated(mesh, ratio, name, groups=()):
+    """Collapse-decimated copy of `mesh` (keeps UVs, colours, materials and vertex weights; the temporary object
+    needs the vertex groups or the evaluated mesh drops the skin weights)."""
     obj = bpy.data.objects.new("_dec", mesh)
+    for g in groups:
+        if g not in obj.vertex_groups:
+            obj.vertex_groups.new(name=g)
     bpy.context.collection.objects.link(obj)
     mod = obj.modifiers.new("dec", "DECIMATE")
     mod.decimate_type = "COLLAPSE"
@@ -60,6 +64,16 @@ def decimated(mesh, ratio, name):
     bpy.data.objects.remove(obj)
     finalize_mesh(out)
     return out
+
+
+def add_uv2(mesh):
+    """Vehicle shaders sample a third UV set; reuse UVMap 0 for it."""
+    if "UVMap 2" not in mesh.uv_layers:
+        src = mesh.uv_layers["UVMap 0"].data
+        dst = mesh.uv_layers.new(name="UVMap 2").data
+        buf = [0.0] * (len(src) * 2)
+        src.foreach_get("uv", buf)
+        dst.foreach_set("uv", buf)
 
 
 def bone_vertices(mesh, group_index):
@@ -80,9 +94,8 @@ def hull_mesh(points, origin, name):
     bm = bmesh.new()
     for p in points:
         bm.verts.new(p - origin)
-    res = bmesh.ops.convex_hull(bm, input=bm.verts[:])
-    bmesh.ops.delete(bm, geom=[g for g in res["geom_interior"] + res["geom_unused"] if isinstance(g, bmesh.types.BMVert)],
-                     context="VERTS")
+    bmesh.ops.convex_hull(bm, input=bm.verts[:])
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
     me = bpy.data.meshes.new(name)
     bm.to_mesh(me)
@@ -122,10 +135,11 @@ def main():
     body.build_body(mb)
     full = mb.to_mesh("at4x_body", mats, group_index=gi)
     finalize_mesh(full)
+    add_uv2(full)
     lods = {L.VERYHIGH: full, L.HIGH: full}
     if with_lods:
         for lvl, r in LOD_RATIOS.items():
-            lods[getattr(L, lvl)] = decimated(full, r, f"at4x_body_{lvl.lower()}")
+            lods[getattr(L, lvl)] = decimated(full, r, f"at4x_body_{lvl.lower()}", groups=list(gi))
     frag.add_skinned_model("at4x_body", lods)
 
     # ---------------------------------------------------------------- wheel (instanced by the game)
@@ -133,6 +147,7 @@ def main():
     body.build_wheel(wb, bone="wheel_lf")
     wfull = wb.to_mesh("wheel_lf", mats)
     finalize_mesh(wfull)
+    add_uv2(wfull)
     wlods = {L.VERYHIGH: wfull, L.HIGH: wfull}
     if with_lods:
         wlods[L.MEDIUM] = decimated(wfull, 0.3, "wheel_lf_medium")
@@ -186,4 +201,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        import traceback
+        traceback.print_exc()
+        sz.force_exit(1)    # bpy hangs on a normal interpreter exit

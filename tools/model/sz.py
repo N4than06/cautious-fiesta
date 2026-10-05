@@ -152,7 +152,8 @@ class Fragment:
         first = next(iter(lod_meshes.values()))
         obj = bpy.data.objects.new(name, first)
         for b in self.obj.data.bones:
-            obj.vertex_groups.new(name=b.name)
+            if b.name not in obj.vertex_groups:      # group names live on the mesh (shared by LOD copies)
+                obj.vertex_groups.new(name=b.name)
         obj.sollum_type = ST.DRAWABLE_MODEL
         bpy.context.collection.objects.link(obj)
         obj.parent = self.drawable
