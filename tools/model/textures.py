@@ -49,23 +49,126 @@ def honeycomb(n=128):
     return img
 
 
-def tire(n=128):
-    img = _noise((n, n), (34, 34, 36, 255), 10, 7, 0.6)
+def tire(n=256):
+    """Tread rubber. u runs across the tread (0.064 m per tile), v around it (0.048 m per tile): three wavy sipes
+    per tile (the DuraTrac RT siping); the band around v = 0 stays plain (groove floors, walls, lugs)."""
+    img = _noise((n, n), (33, 33, 35, 255), 7, 7, 0.8)
     d = ImageDraw.Draw(img)
-    for k in range(0, n, 16):
-        d.line([(0, k), (n, k)], fill=(26, 26, 27, 255), width=2)
-    return img
+    for v in (0.30, 0.55, 0.80):
+        y0 = (1.0 - v) * n
+        pts = []
+        for x in range(-4, n + 5, 2):
+            # zig-zag sipe: ~6 mm pitch, 1.4 mm amplitude, slightly rounded
+            ph = (x / (n / 10.0)) % 1.0
+            tri = 4.0 * abs(ph - 0.5) - 1.0
+            pts.append((x, y0 + 0.022 * n * tri))
+        d.line(pts, fill=(14, 14, 15, 255), width=max(2, n // 96))
+        d.line([(x, y + max(2, n // 96)) for x, y in pts], fill=(44, 44, 46, 255), width=1)
+    return img.filter(ImageFilter.GaussianBlur(0.5))
 
 
-def tire_sidewall(letters=False, n=256):
-    """Polar-mapped sidewall strip: u = angle, v = radius (0 = rim, 1 = tread)."""
-    img = _noise((n * 2, n // 2), (36, 36, 38, 255), 8, 11, 0.5)
+def tire_sidewall(letters=False, n=2048):
+    """Polar-mapped outer sidewall, half the circumference (the mesh repeats it twice): u = angle, v = radius
+    (0 = rim flange, 1 = shoulder). Goodyear moulding: GOODYEAR (wingfoot) and WRANGLER in big raised letters,
+    DURATRAC smaller, size / load / DOT print, the rim-protector rib and a fine moulding ring."""
+    def _tire_font(size):
+        for name in ("DejaVuSans-Bold.ttf", "LiberationSans-Bold.ttf", "arialbd.ttf", "Arial Bold.ttf",
+                     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                     "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf", "C:/Windows/Fonts/arialbd.ttf"):
+            try:
+                return ImageFont.truetype(name, size)
+            except OSError:
+                continue
+        return ImageFont.load_default(size=size)
+
+
+    def _tire_word(text, height, squash, fill, edge, shade, slant=0.0, outline=0):
+        """Raised moulded lettering: face colour, a lit upper edge and a shadowed lower edge (u squashed because the
+        texture covers half the circumference)."""
+        font = _tire_font(height * 2)
+        tmp = Image.new("L", (int(height * 2 * len(text) * 1.1) + 40, height * 3), 0)
+        ImageDraw.Draw(tmp).text((20, height // 2), text, font=font, fill=255, stroke_width=max(1, height // 18),
+                                 stroke_fill=255)
+        bbox = tmp.getbbox()
+        tmp = tmp.crop(bbox)
+        w = max(1, int(tmp.width * height / tmp.height * squash))
+        if slant:
+            tmp = tmp.transform(tmp.size, Image.AFFINE, (1, slant, -slant * tmp.height, 0, 1, 0), Image.BILINEAR)
+        mask = tmp.resize((w, height), Image.LANCZOS)
+        out = Image.new("RGBA", (w + 4, height + 4), (0, 0, 0, 0))
+        out.paste(shade, (1, 2, 1 + w, 2 + height), mask)
+        out.paste(edge, (0, 0, w, height), mask)
+        out.paste(fill, (0, 1, w, 1 + height), mask)
+        if outline:
+            inner = mask.filter(ImageFilter.MinFilter(outline * 2 + 1))
+            hollow = tuple(int(a * 0.45 + b * 0.55) for a, b in zip(shade[:3], fill[:3])) + (255,)
+            out.paste(hollow, (0, 1, w, 1 + height), inner)
+        return out
+
+
+    def _wingfoot(height, fill, edge):
+        """Small stylised Goodyear wingfoot between GOOD and YEAR."""
+        w = int(height * 1.1)
+        img = Image.new("RGBA", (w, height), (0, 0, 0, 0))
+        d = ImageDraw.Draw(img)
+        h = height
+        foot = [(0.10 * w, 0.95 * h), (0.55 * w, 0.95 * h), (0.62 * w, 0.80 * h), (0.40 * w, 0.72 * h),
+                (0.36 * w, 0.40 * h), (0.22 * w, 0.40 * h), (0.24 * w, 0.75 * h)]
+        wing = [(0.36 * w, 0.42 * h), (0.95 * w, 0.05 * h), (0.80 * w, 0.30 * h), (0.98 * w, 0.22 * h),
+                (0.78 * w, 0.48 * h), (0.95 * w, 0.42 * h), (0.60 * w, 0.66 * h), (0.40 * w, 0.66 * h)]
+        d.polygon(foot, fill=fill, outline=edge)
+        d.polygon(wing, fill=fill, outline=edge)
+        return img
+
+
+    h = n // 8
+    img = _noise((n, h), (30, 30, 32, 255), 5, 11, 0.6)
+    d = ImageDraw.Draw(img)
+
+    def row(v):
+        return int(round((1.0 - v) * (h - 1)))
+    # rim protector rib (lit top edge, shadowed lower edge) and moulding rings
+    d.rectangle([0, row(0.17), n, row(0.10)], fill=(36, 36, 38, 255))
+    d.line([(0, row(0.17)), (n, row(0.17))], fill=(50, 50, 53, 255), width=2)
+    d.line([(0, row(0.10)), (n, row(0.10))], fill=(18, 18, 19, 255), width=2)
+    d.line([(0, row(0.205)), (n, row(0.205))], fill=(24, 24, 25, 255), width=1)
+    d.line([(0, row(0.70)), (n, row(0.70))], fill=(24, 24, 25, 255), width=1)
     if letters:
-        for k in range(4):
-            _text(img, ((k + 0.5) * n / 2, n // 4), "AT4X  MUD-TERRAIN", 22, (236, 236, 230, 255))
+        fill, edge, shade = (226, 226, 220, 255), (250, 250, 246, 255), (120, 120, 118, 255)
     else:
-        for k in range(4):
-            _text(img, ((k + 0.5) * n / 2, n // 4), "AT4X  MUD-TERRAIN", 22, (52, 52, 54, 255))
+        fill, edge, shade = (44, 44, 47, 255), (66, 66, 70, 255), (14, 14, 15, 255)
+    big = int(h * 0.235)           # ~35 mm letters
+    small = int(h * 0.105)         # ~16 mm
+    tiny = max(8, int(h * 0.045))  # ~7 mm print
+
+    def put(word, x, v, size, squash=1.0, outline=0):
+        im = _tire_word(word, size, squash, fill, edge, shade, outline=outline)
+        img.alpha_composite(im, (int(x - im.width / 2), row(v) - im.height // 2))
+        return im.width
+    # GOODYEAR with the wingfoot
+    x0 = int(n * 0.20)
+    wg = _wingfoot(big, fill, edge)
+    gw = _tire_word("GOOD", big, 1.05, fill, edge, shade, outline=max(1, big // 14))
+    yw = _tire_word("YEAR", big, 1.05, fill, edge, shade, outline=max(1, big // 14))
+    total = gw.width + wg.width + yw.width + 8
+    x = x0 - total // 2
+    vy = row(0.50) - big // 2
+    img.alpha_composite(gw, (x, vy))
+    img.alpha_composite(wg, (x + gw.width + 4, vy + 2))
+    img.alpha_composite(yw, (x + gw.width + wg.width + 8, vy))
+    put("DURATRAC", int(n * 0.47), 0.36, small, 1.15)
+    put("WRANGLER", int(n * 0.73), 0.50, big, 1.05, outline=max(1, big // 14))
+    # small print
+    put("LT275/70R18  121/118Q  LOAD RANGE E", int(n * 0.92), 0.30, tiny)
+    put("M+S", int(n * 0.39), 0.64, tiny)
+    put("TPC SPEC 2852MS", int(n * 0.06), 0.64, tiny)
+    put("DOT 3D MJ XRT 4221", int(n * 0.60), 0.24, tiny)
+    put("TUBELESS  RADIAL", int(n * 0.90), 0.62, tiny)
+    # 3PMSF mountain/snowflake mark
+    mx, my = int(n * 0.43), row(0.64)
+    s = tiny
+    d.polygon([(mx - s, my + s // 2), (mx - s // 3, my - s // 2), (mx, my), (mx + s // 3, my - s // 3),
+               (mx + s, my + s // 2)], outline=edge, fill=fill)
     return img
 
 
@@ -211,6 +314,7 @@ def all_textures():
         "at4x_sidewall_rwl": tire_sidewall(True),
         "at4x_rim": solid((235, 235, 235, 255)),
         "at4x_glass": solid((34, 40, 44, 96)),
+        "at4x_lens_glass": solid((235, 238, 242, 28)),
         "at4x_lens_clear": lens((215, 220, 230, 160)),
         "at4x_lens_red": lens((170, 10, 14, 200)),
         "at4x_lens_amber": lens((230, 120, 10, 200)),
@@ -222,7 +326,7 @@ def all_textures():
         "at4x_bedliner": bedliner(),
         "at4x_badge_gmc": badge_gmc(),
         "at4x_plate": plate(),
-        "at4x_titanium": grain((68, 78, 92, 255), 13, amp=6),
+        "at4x_titanium": grain((150, 132, 112, 255), 13, amp=6),
         "at4x_badge_at4x": badge_at4x(),
         "at4x_badge_sierra": badge_sierra(),
         "at4x_badge_v8": badge_v8(),

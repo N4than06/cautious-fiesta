@@ -69,6 +69,7 @@ SPEC = {
     # glass and lights
     "glass": _m("vehicle_vehglass", "at4x_glass"),
     "glass_in": _m("vehicle_vehglass_inner", "at4x_glass"),
+    "lens": _m("vehicle_vehglass", "at4x_lens_glass"),       # clear outer lamp lenses
     "light_clear": _m("vehicle_lightsemissive", "at4x_lens_clear"),
     "light_led": _m("vehicle_lightsemissive", "at4x_led"),
     "light_red": _m("vehicle_lightsemissive", "at4x_lens_red"),

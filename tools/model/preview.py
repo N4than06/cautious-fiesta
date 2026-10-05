@@ -31,7 +31,7 @@ LOOK = {
     "alu": ("at4x_alu", None, 0.9, 0.35, 0),
     "red": (None, (0.55, 0.01, 0.015), 0.1, 0.3, 0),
     "gold": (None, (0.75, 0.55, 0.12), 1.0, 0.25, 0),
-    "titanium": (None, (0.07, 0.09, 0.12), 0.9, 0.28, 0),
+    "titanium": (None, (0.30, 0.26, 0.22), 0.85, 0.32, 0),   # Titanium Rush: warm light bronze satin
     "plate": ("at4x_plate", None, 0.0, 0.4, 0),
     "grille": ("at4x_grille", None, 0.3, 0.4, 0),
     "mesh": ("at4x_mesh", None, 0.3, 0.4, 0),
@@ -46,6 +46,7 @@ LOOK = {
     "rim_black": (None, (0.02, 0.02, 0.02), 0.3, 0.4, 0),
     "glass": (None, (0.015, 0.018, 0.02), 0.0, 0.02, 0),
     "glass_in": (None, (0.015, 0.018, 0.02), 0.0, 0.02, 0),
+    "lens": (None, (0.95, 0.96, 0.97), 0.0, 0.02, 0),
     "light_clear": (None, (0.9, 0.92, 0.95), 0.0, 0.05, 2.0),
     "light_led": (None, (1.0, 1.0, 1.0), 0.0, 0.05, 6.0),
     "light_red": (None, (0.6, 0.01, 0.01), 0.0, 0.1, 1.5),
@@ -100,6 +101,11 @@ class PreviewMaterials(dict):
             bsdf.inputs["Transmission Weight"].default_value = 1.0
             bsdf.inputs["Roughness"].default_value = 0.0
             bsdf.inputs["IOR"].default_value = 1.52
+        if key == "lens":
+            # clear polycarbonate lamp lens: the internals show through
+            bsdf.inputs["Transmission Weight"].default_value = 1.0
+            bsdf.inputs["Roughness"].default_value = 0.0
+            bsdf.inputs["IOR"].default_value = 1.45
         if emis:
             bsdf.inputs["Emission Color"].default_value = (*(col or (1, 1, 1)), 1)
             bsdf.inputs["Emission Strength"].default_value = emis
