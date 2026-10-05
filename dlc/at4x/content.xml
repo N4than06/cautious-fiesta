@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDataFileMgr__ContentsOfDataFileXml>
+  <disabledFiles />
+  <includedXmlFiles />
+  <includedDataFiles />
+  <dataFiles>
+    <Item>
+      <filename>dlc_at4x:/common/data/handling.meta</filename>
+      <fileType>HANDLING_FILE</fileType>
+      <overlay value="false" />
+      <disabled value="true" />
+      <persistent value="true" />
+    </Item>
+    <Item>
+      <filename>dlc_at4x:/common/data/vehicles.meta</filename>
+      <fileType>VEHICLE_METADATA_FILE</fileType>
+      <overlay value="false" />
+      <disabled value="true" />
+      <persistent value="true" />
+    </Item>
+    <Item>
+      <filename>dlc_at4x:/common/data/carcols.meta</filename>
+      <fileType>CARCOLS_FILE</fileType>
+      <overlay value="false" />
+      <disabled value="true" />
+      <persistent value="true" />
+    </Item>
+    <Item>
+      <filename>dlc_at4x:/common/data/carvariations.meta</filename>
+      <fileType>VEHICLE_VARIATION_FILE</fileType>
+      <overlay value="false" />
+      <disabled value="true" />
+      <persistent value="true" />
+    </Item>
+    <Item>
+      <filename>dlc_at4x:/%PLATFORM%/vehicles.rpf</filename>
+      <fileType>RPF_FILE</fileType>
+      <overlay value="false" />
+      <disabled value="true" />
+      <persistent value="true" />
+      <contents>CONTENTS_DLC_VEHICLES</contents>
+    </Item>
+    <!-- OPTIONAL add-on rims/tires. Uncomment this block AND the matching line in filesToEnable
+         once every wheel model in MODEL_CHECKLIST.txt exists.
+    <Item>
+      <filename>dlc_at4x:/common/data/carcols_wheels.meta</filename>
+      <fileType>CARCOLS_FILE</fileType>
+      <overlay value="false" />
+      <disabled value="true" />
+      <persistent value="true" />
+    </Item>
+    -->
+  </dataFiles>
+  <contentChangeSets>
+    <Item>
+      <changeSetName>AT4X_AUTOGEN</changeSetName>
+      <mapChangeSetData />
+      <filesToInvalidate />
+      <filesToDisable />
+      <filesToEnable>
+        <Item>dlc_at4x:/common/data/handling.meta</Item>
+        <Item>dlc_at4x:/common/data/vehicles.meta</Item>
+        <Item>dlc_at4x:/common/data/carcols.meta</Item>
+        <Item>dlc_at4x:/common/data/carvariations.meta</Item>
+        <Item>dlc_at4x:/%PLATFORM%/vehicles.rpf</Item>
+        <!-- <Item>dlc_at4x:/common/data/carcols_wheels.meta</Item> -->
+      </filesToEnable>
+      <txdToLoad />
+      <txdToUnload />
+      <residentResources />
+      <unregisterResources />
+    </Item>
+  </contentChangeSets>
+  <patchFiles />
+</CDataFileMgr__ContentsOfDataFileXml>

@@ -1,0 +1,301 @@
+#!/usr/bin/env python3
+"""Generate the AT4X add-on data files from src/parts.json.
+
+Outputs:
+  dlc/at4x/common/data/carcols.meta          mod kit (visible parts, stat upgrades, horns, slot names)
+  dlc/at4x/common/data/carcols_wheels.meta   optional add-on rims/tires
+  dlc/at4x/x64/data/lang/americandlc.rpf/global.gxt2   in-game names (binary GXT2)
+  src/generated/at4x_text.oxt                same text in OpenIV's editable format
+  dlc/at4x/x64/vehicles.rpf/MODEL_CHECKLIST.txt        every model file the pack expects
+  scripts/AT4XGarage.ini                     keeps the power-rail / Whipple part indices in sync
+
+Usage:
+  python3 tools/build.py                     regenerate everything
+  python3 tools/build.py --check DIR         also report which expected model files are missing from DIR
+"""
+import argparse
+import json
+import os
+import re
+import struct
+import sys
+from xml.sax.saxutils import escape
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DLC = os.path.join(ROOT, "dlc", "at4x")
+DATA = os.path.join(DLC, "common", "data")
+LANG = os.path.join(DLC, "x64", "data", "lang", "americandlc.rpf")
+STREAM = os.path.join(DLC, "x64", "vehicles.rpf")
+INI = os.path.join(ROOT, "scripts", "AT4XGarage.ini")
+
+# Vanilla wheel categories, indexed by SET_VEHICLE_WHEEL_TYPE id.
+WHEEL_TYPE_COUNT = 13
+
+
+def joaat(text):
+    """RAGE one-at-a-time hash (case-insensitive), as used for GXT2 keys."""
+    h = 0
+    for c in text.lower().encode("utf-8"):
+        h = (h + c) & 0xFFFFFFFF
+        h = (h + (h << 10)) & 0xFFFFFFFF
+        h ^= h >> 6
+    h = (h + (h << 3)) & 0xFFFFFFFF
+    h ^= h >> 11
+    h = (h + (h << 15)) & 0xFFFFFFFF
+    return h
+
+
+def write_gxt2(path, entries):
+    """Write a PC (little-endian) GXT2 string table. entries: {label: text}."""
+    items = sorted(((joaat(k), v) for k, v in entries.items()), key=lambda kv: kv[0])
+    hashes = [h for h, _ in items]
+    if len(set(hashes)) != len(hashes):
+        sys.exit("error: GXT2 hash collision between text labels")
+    blobs = [v.encode("utf-8") + b"\0" for _, v in items]
+    offset = 16 + 8 * len(items)
+    table = bytearray()
+    for (h, _), blob in zip(items, blobs):
+        table += struct.pack("<II", h, offset)
+        offset += len(blob)
+    out = struct.pack("<II", 0x47585432, len(items)) + table + struct.pack("<II", 0x47585432, offset)
+    out += b"".join(blobs)
+    with open(path, "wb") as f:
+        f.write(out)
+
+
+def write_text(path, content):
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(content)
+
+
+def part_label(slot, index):
+    return "AT4X_%s%d" % (slot["code"], index + 1)
+
+
+def visible_mod_xml(slot, part, label):
+    bones = "".join("\n            <Item>%s</Item>" % b for b in slot["turnOffBones"])
+    turn_off = "<turnOffBones>%s\n          </turnOffBones>" % bones if bones else "<turnOffBones />"
+    return """        <Item>
+          <modelName>{model}</modelName>
+          <modShopLabel>{label}</modShopLabel>
+          <linkedModels />
+          {turn_off}
+          <type>{type}</type>
+          <bone>{bone}</bone>
+          <collisionBone>{cbone}</collisionBone>
+          <cameraPos>{cam}</cameraPos>
+          <audioApply value="1.000000" />
+          <weight value="20" />
+          <turnOffExtra value="false" />
+          <disableBonnetCamera value="{nobonnetcam}" />
+          <allowBonnetSlide value="true" />
+        </Item>
+""".format(model=part["model"], label=label, turn_off=turn_off, type=slot["type"],
+           bone=slot["bone"], cbone=slot["collisionBone"], cam=slot["cameraPos"],
+           nobonnetcam="true" if slot["type"] in ("VMT_BONNET", "VMT_ENGINEBAY1", "VMT_ENGINEBAY2") else "false")
+
+
+def stat_mod_xml(mod_type, modifier, identifier=""):
+    ident = "<identifier>%s</identifier>" % identifier if identifier else "<identifier />"
+    return """        <Item>
+          {ident}
+          <modifier value="{mod}" />
+          <audioApply value="1.000000" />
+          <weight value="20" />
+          <type>{type}</type>
+        </Item>
+""".format(ident=ident, mod=modifier, type=mod_type)
+
+
+def build_carcols(cat, text):
+    kit = cat["kit"]
+    visible, slot_names = [], []
+    for slot in cat["slots"]:
+        slot_label = "AT4X_S_%s" % slot["code"]
+        text[slot_label] = slot["slotName"]
+        slot_names.append("""        <Item>
+          <slot>{type}</slot>
+          <name>{label}</name>
+        </Item>
+""".format(type=slot["type"], label=slot_label))
+        for i, part in enumerate(slot["parts"]):
+            label = part_label(slot, i)
+            text[label] = part["name"]
+            visible.append(visible_mod_xml(slot, part, label))
+
+    stats = []
+    for mod_type, modifiers in cat["statMods"].items():
+        stats += [stat_mod_xml(mod_type, m) for m in modifiers]
+    stats += [stat_mod_xml("VMT_HORN", 0, h) for h in cat["horns"]]
+
+    xml = """<?xml version="1.0" encoding="UTF-8"?>
+<!-- GENERATED by tools/build.py from src/parts.json - edit the catalog, not this file. -->
+<CVehicleModelInfoVarGlobal>
+  <Kits>
+    <Item>
+      <kitName>{name}</kitName>
+      <id value="{id}" />
+      <kitType>MKT_SPECIAL</kitType>
+      <visibleMods>
+{visible}      </visibleMods>
+      <linkMods />
+      <statMods>
+{stats}      </statMods>
+      <slotNames>
+{slots}      </slotNames>
+      <liveryNames />
+    </Item>
+  </Kits>
+  <Lights />
+</CVehicleModelInfoVarGlobal>
+""".format(name=kit["name"], id=kit["id"], visible="".join(visible), stats="".join(stats),
+           slots="".join(slot_names))
+    write_text(os.path.join(DATA, "carcols.meta"), xml)
+
+
+def build_wheels(cat, text):
+    wheels = cat["wheels"]
+    groups = []
+    for wheel_type in range(WHEEL_TYPE_COUNT):
+        if wheel_type != wheels["wheelType"]:
+            groups.append("    <Item />\n")
+            continue
+        items = []
+        for i, w in enumerate(wheels["items"]):
+            label = "AT4X_WHL%d" % (i + 1)
+            text[label] = w["name"]
+            items.append("""      <Item>
+        <wheelName>{model}</wheelName>
+        <wheelVariation>{var}</wheelVariation>
+        <modShopLabel>{label}</modShopLabel>
+        <rimRadius value="{rim:.6f}" />
+        <rear value="false" />
+      </Item>
+""".format(model=w["model"], var=w["variation"], label=label, rim=w["rimRadius"]))
+        groups.append("    <Item>\n%s    </Item>\n" % "".join(items))
+    xml = """<?xml version="1.0" encoding="UTF-8"?>
+<!-- GENERATED by tools/build.py. OPTIONAL: only enable this file in content.xml once the
+     wheel models listed in MODEL_CHECKLIST.txt exist, otherwise those rims render invisible. -->
+<CVehicleModelInfoVarGlobal>
+  <Kits />
+  <Lights />
+  <Wheels>
+{groups}  </Wheels>
+</CVehicleModelInfoVarGlobal>
+""".format(groups="".join(groups))
+    write_text(os.path.join(DATA, "carcols_wheels.meta"), xml)
+
+
+def expected_files(cat):
+    model = cat["vehicle"]["model"]
+    files = ["%s.yft" % model, "%s_hi.yft" % model, "%s.ytd" % model]
+    for slot in cat["slots"]:
+        files += ["%s.yft" % p["model"] for p in slot["parts"]]
+    for w in cat["wheels"]["items"]:
+        files += ["%s.ydr" % w["model"], "%s.ydr" % w["variation"]]
+    return files
+
+
+def build_checklist(cat):
+    lines = [
+        "GENERATED by tools/build.py - every file the AT4X pack expects inside x64/vehicles.rpf.",
+        "Base model + texture dictionary are REQUIRED. Each mod part is only needed if you keep it in",
+        "src/parts.json (remove a part there and rebuild if you don't want to model it).",
+        "Wheel .ydr files are only needed if you enable carcols_wheels.meta.",
+        "",
+    ]
+    lines += expected_files(cat)
+    write_text(os.path.join(STREAM, "MODEL_CHECKLIST.txt"), "\n".join(lines) + "\n")
+
+
+def index_of(cat, slot_type, model):
+    for slot in cat["slots"]:
+        if slot["type"] == slot_type:
+            for i, p in enumerate(slot["parts"]):
+                if p["model"] == model:
+                    return i
+    sys.exit("error: %s is not a %s part in parts.json" % (model, slot_type))
+
+
+def sync_ini(cat):
+    """Rewrite the index lines in the garage INI so they always match the catalog order."""
+    seqs = ",".join(">".join(str(index_of(cat, "VMT_SKIRT", m)) for m in seq) for seq in cat["powerRails"])
+    wh = cat["whipple"]
+    values = {
+        ("PowerRails", "Sequences"): seqs,
+        ("Whipple", "SuperchargerIndex"): str(index_of(cat, "VMT_ENGINEBAY1", wh["supercharger"])),
+        ("Whipple", "HoodIndex"): str(index_of(cat, "VMT_BONNET", wh["hood"])),
+        ("Whipple", "IntakeIndex"): str(index_of(cat, "VMT_ENGINEBAY2", wh["intake"])),
+    }
+    with open(INI, encoding="utf-8") as f:
+        lines = f.read().splitlines()
+    section, seen = None, set()
+    for n, line in enumerate(lines):
+        m = re.match(r"\s*\[(.+)\]\s*$", line)
+        if m:
+            section = m.group(1)
+            continue
+        m = re.match(r"\s*([A-Za-z]+)\s*=", line)
+        if m and (section, m.group(1)) in values:
+            key = (section, m.group(1))
+            lines[n] = "%s=%s" % (key[1], values[key])
+            seen.add(key)
+    missing = set(values) - seen
+    if missing:
+        sys.exit("error: scripts/AT4XGarage.ini is missing keys: %s" % sorted(missing))
+    write_text(INI, "\n".join(lines) + "\n")
+
+
+def validate(cat):
+    models = [p["model"] for s in cat["slots"] for p in s["parts"]]
+    models += [w["model"] for w in cat["wheels"]["items"]] + [w["variation"] for w in cat["wheels"]["items"]]
+    dupes = sorted({m for m in models if models.count(m) > 1})
+    if dupes:
+        sys.exit("error: duplicate model names in parts.json: %s" % dupes)
+    types = [s["type"] for s in cat["slots"]]
+    if len(types) != len(set(types)):
+        sys.exit("error: a VMT slot type is listed twice in parts.json")
+    codes = [s["code"] for s in cat["slots"]]
+    if len(codes) != len(set(codes)):
+        sys.exit("error: a slot code is listed twice in parts.json")
+    for s in cat["slots"]:
+        if not 0 < len(s["parts"]) <= 255:
+            sys.exit("error: slot %s must have 1-255 parts" % s["type"])
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--check", metavar="DIR", help="folder holding your exported .yft/.ytd/.ydr files")
+    args = ap.parse_args()
+
+    with open(os.path.join(ROOT, "src", "parts.json"), encoding="utf-8") as f:
+        cat = json.load(f)
+    validate(cat)
+
+    v = cat["vehicle"]
+    text = {v["gameName"]: v["displayName"], v["makeName"]: v["makeDisplay"]}
+    build_carcols(cat, text)
+    build_wheels(cat, text)
+    build_checklist(cat)
+    sync_ini(cat)
+
+    write_gxt2(os.path.join(LANG, "global.gxt2"), text)
+    gen = os.path.join(ROOT, "src", "generated")
+    os.makedirs(gen, exist_ok=True)
+    oxt = "Version 2 30\n{\n" + "".join("    %s = %s\n" % (k, text[k]) for k in sorted(text)) + "}\n"
+    write_text(os.path.join(gen, "at4x_text.oxt"), oxt)
+
+    nparts = sum(len(s["parts"]) for s in cat["slots"])
+    print("carcols.meta: %d slots, %d parts | wheels: %d | text entries: %d"
+          % (len(cat["slots"]), nparts, len(cat["wheels"]["items"]), len(text)))
+
+    if args.check:
+        have = {n.lower() for n in os.listdir(args.check)}
+        missing = [f for f in expected_files(cat) if f.lower() not in have]
+        print("%d expected files missing from %s" % (len(missing), args.check))
+        for f in missing:
+            print("  missing: " + f)
+
+
+if __name__ == "__main__":
+    main()

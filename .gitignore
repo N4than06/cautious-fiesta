@@ -1,0 +1,3 @@
+scripts/build/bin/
+scripts/build/obj/
+__pycache__/
