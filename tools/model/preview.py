@@ -205,6 +205,11 @@ VIEWS = {
     "front": ((0.0, 10.0, 0.9), (0, 0, 0.15), 50),
     "rear": ((0.0, -10.0, 1.2), (0, 0, 0.15), 50),
     "top": ((0.01, 0.0, 13.0), (0, 0, 0), 45),
+    # close-ups used while matching the surfaces
+    "cab_34": ((4.6, 5.4, 2.4), (0, 0.9, 0.7), 45),
+    "nose_34": ((3.2, 6.6, 0.9), (0, 2.4, 0.2), 45),
+    "front_low": ((0.0, 8.0, -0.2), (0, 2.0, 0.25), 40),
+    "tail_34": ((3.4, -6.4, 1.0), (0, -2.4, 0.2), 45),
 }
 
 # Approximate cameras of the dealer reference photos (1024x768): name -> (location, target, lens)

@@ -76,17 +76,6 @@ def doors(mb):
         xs = side_x(hy, 1.30)
         m.rbox((xs - 0.012, hy - 0.17, G(1.282)), (xs - 0.004, hy, G(1.328)), 0.012, "gloss_black", bone)
         m.rbox((xs - 0.004, hy - 0.16, G(1.29)), (xs + 0.020, hy - 0.01, G(1.322)), 0.012, "paint", bone)
-        # window frame (black) around the glass
-        zt = 1.912
-        if front:
-            path = [(0.955, Y_FDOOR_F - 0.12, G(ZG_BELT + 0.01)), (glass_x(1.78), a_pillar_y(1.78) - 0.02, G(1.78)),
-                    (glass_x(zt), Y_ROOF_F + 0.03, G(zt)), (glass_x(zt), y1 + 0.012, G(zt)),
-                    (0.955, y1 + 0.012, G(ZG_BELT + 0.01))]
-        else:
-            path = [(0.955, y0 - 0.012, G(ZG_BELT + 0.01)), (glass_x(zt), y0 - 0.012, G(zt)),
-                    (glass_x(zt), y1 + 0.075, G(zt)), (glass_x(zt - 0.03), y1 + 0.022, G(zt - 0.035)),
-                    (glass_x(1.80), y1 + 0.012, G(1.80)), (0.955, y1 + 0.012, G(ZG_BELT + 0.01))]
-        m.tube(path, 0.017, "gloss_black", bone, seg=6)
         if front:
             with _lifted(m, MIRROR_DROP):
                 mirror(m, bone)
@@ -106,29 +95,11 @@ def cab_sheetmetal(mb):
     mirror_side(mb, lambda m: side_panel(m, outline, "chassis", side_x,
                                          creases=[crease_line(Y_RDOOR_R - 0.01, Y_CAB_R + 0.005)]))
 
-    # C-pillar rolling into the roof
-    def cpil(m):
-        rings = []
-        for zg in (ZG_BELT, 1.58, 1.72, 1.86, ZG_ROOF - 0.04):
-            x = glass_x(zg) + 0.014
-            r = 0.02 * smoothstep(1.80, ZG_ROOF, zg)
-            rings.append([(x - 0.06, Y_RDOOR_R - 0.004, G(zg)), (x, Y_RDOOR_R - 0.004, G(zg)),
-                          (x - r, Y_CAB_R + 0.02, G(zg)), (x - 0.03 - r, Y_CAB_R - 0.004, G(zg)),
-                          (x - 0.06, Y_CAB_R - 0.004, G(zg))])
-        m.loft(rings, "paint", "chassis")
-    mirror_side(mb, cpil)
-
     # black rocker under the doors (seen behind the running boards)
     def rocker(m):
         m.loft([[(0.86, y, G(0.43)), (0.965, y, G(0.45)), (0.985 + bow(y), y, G(ZG_BODY + 0.01)),
                  (0.86, y, G(ZG_BODY + 0.01))] for y in (Y_FDOOR_F - 0.01, Y_CAB_R)], "plastic", "chassis")
     mirror_side(mb, rocker)
-
-    def bpil(m):
-        m.loft([[(glass_x(zg) + 0.004, Y_FDOOR_R - 0.006, G(zg)), (glass_x(zg) + 0.004, Y_RDOOR_F + 0.006, G(zg)),
-                 (glass_x(zg) - 0.04, Y_RDOOR_F + 0.006, G(zg)), (glass_x(zg) - 0.04, Y_FDOOR_R - 0.006, G(zg))]
-                for zg in (ZG_BELT, ZG_ROOF - 0.07)], "gloss_black", "chassis")
-    mirror_side(mb, bpil)
 
 
 def bed_sides(mb):
@@ -243,69 +214,99 @@ def cowl(mb):
         mb.box((x0, Y_WS - 0.035, G(ZG_BELT - 0.008)), (x0 + 0.62, Y_WS - 0.02, G(ZG_BELT + 0.002)), "black", "chassis")
     # whip antenna (driver side, hood/cowl corner) and roof shark fin
     mb.cylinder((-0.86, Y_HOOD_R + 0.02, G(1.43)), (-0.86, Y_HOOD_R + 0.08, G(2.25)), 0.004, "black", "chassis", seg=6)
-    mb.loft([[(x, y, G(z)) for x, y, z in ((-0.03, Y_ROOF_F - 0.12, 1.99), (0.03, Y_ROOF_F - 0.12, 1.99),
-                                           (0.012, Y_ROOF_F - 0.26, 2.05), (-0.012, Y_ROOF_F - 0.26, 2.05))],
-             [(x, y, G(z)) for x, y, z in ((-0.03, Y_ROOF_F - 0.30, 1.99), (0.03, Y_ROOF_F - 0.30, 1.99),
-                                           (0.012, Y_ROOF_F - 0.29, 2.05), (-0.012, Y_ROOF_F - 0.29, 2.05))]],
+    mb.loft([[(x, y, G(z)) for x, y, z in ((-0.03, Y_WS_TOP - 0.22, 1.99), (0.03, Y_WS_TOP - 0.22, 1.99),
+                                           (0.012, Y_WS_TOP - 0.36, 2.05), (-0.012, Y_WS_TOP - 0.36, 2.05))],
+             [(x, y, G(z)) for x, y, z in ((-0.03, Y_WS_TOP - 0.40, 1.99), (0.03, Y_WS_TOP - 0.40, 1.99),
+                                           (0.012, Y_WS_TOP - 0.39, 2.05), (-0.012, Y_WS_TOP - 0.39, 2.05))]],
             "gloss_black", "chassis")
 
 
+# ------------------------------------------------------------------------------------------- greenhouse
+# The cab top is two continuous skins: a height field over the plan (roof, windshield header, windshield, A-pillars)
+# and the side skin (door glass, frames, B-pillar, C-pillar) on x = glass_x(zg). They meet along the A-pillar /
+# roof-side line, so the cab reads as one pressed shape instead of separate boxes.
+
+Y_A_BASE = 1.400                       # A-pillar base at the belt (side view)
+_CL = pchip([(Y_CAB_R - 0.012, 1.925), (Y_CAB_R + 0.06, 1.968), (Y_CAB_R + 0.30, 1.988), (0.20, 1.993),
+             (0.62, 1.986), (Y_WS_TOP - 0.05, 1.968), (Y_WS_TOP + 0.04, 1.936), (Y_WS_TOP + 0.16, 1.862),
+             (1.20, 1.742), (1.40, 1.598), (Y_WS, ZG_BELT)])
+
+
+def gh_side_z(y):
+    """Height where the top skin meets the side skin."""
+    if y <= Y_ROOF_F:
+        return ZG_WS_TOP - 0.006 * smoothstep(Y_CAB_R + 0.12, Y_CAB_R, y)
+    if y >= Y_A_BASE:
+        return ZG_BELT
+    return ZG_BELT + (Y_A_BASE - y) / (Y_A_BASE - Y_ROOF_F) * (ZG_WS_TOP - ZG_BELT)
+
+
+def gh_hw(y):
+    if y <= Y_A_BASE:
+        return glass_x(gh_side_z(y))
+    return glass_x(ZG_BELT) * math.sqrt(max(0.0, (Y_WS - y) / (Y_WS - Y_A_BASE)))
+
+
+def gh_z(x, y):
+    hw = max(gh_hw(y), 1e-4)
+    s = min(1.0, abs(x) / hw)
+    zs = gh_side_z(y)
+    p = 7.0 - 4.6 * smoothstep(Y_WS_TOP - 0.30, Y_WS_TOP + 0.12, y)
+    return zs + (_CL(y) - zs) * (1 - s ** p)
+
+
+def ws_top_y(x):
+    return Y_WS_TOP - 0.215 * (abs(x) / 0.74) ** 2
+
+
+A_PILLAR_W = 0.115                     # visible A-pillar width across the top skin (plan)
+FRIT = 0.045                           # black ceramic band round the windshield
+
+
 def greenhouse(mb):
-    def ws_pt(u, v):
-        zg = ZG_BELT + v * (1.925 - ZG_BELT)
-        y = a_pillar_y(zg) + 0.03 * (1 - u * u) * (0.6 + 0.4 * math.sin(math.pi * v))
-        hw = 0.900 - 0.095 * v
-        return Vector((u * hw, y, G(zg)))
-    _glass_grid(mb, ws_pt, "windscreen", out=Vector((0, 1, 0.6)))
+    y_lo, y_hi = Y_CAB_R - 0.012, Y_WS - 0.001
+    ys = [y_lo + (y_hi - y_lo) * k / 90 for k in range(91)]
+    outline = [(gh_hw(y), y) for y in ys] + [(-gh_hw(y), y) for y in reversed(ys)]
 
-    def apil(m):
-        rings = []
-        for k in range(8):
-            zg = ZG_BELT - 0.01 + k * (1.935 - ZG_BELT + 0.01) / 7
-            y = a_pillar_y(zg)
-            hw = 0.900 - 0.095 * (zg - ZG_BELT) / 0.48
-            rings.append([(hw - 0.006, y + 0.012, G(zg)), (hw + 0.045, y - 0.005, G(zg)), (hw + 0.068, y - 0.05, G(zg)),
-                          (hw + 0.05, y - 0.11, G(zg)), (hw - 0.02, y - 0.05, G(zg))])
-        m.loft(rings, "paint", "chassis")
-    mirror_side(mb, apil)
+    def ws_side(y, inset):
+        return max(0.0, gh_hw(y) - A_PILLAR_W - inset)
 
-    def roof_z(x, y):
-        ax = abs(x)
-        side = 0.045 * smoothstep(0.62, 0.86, ax) ** 1.8
-        crown = 0.012 * (1 - (ax / 0.86) ** 2)
-        f = 0.035 * smoothstep(Y_ROOF_F - 0.14, Y_ROOF_F + 0.03, y) ** 2
-        r = 0.045 * smoothstep(Y_CAB_R + 0.16, Y_CAB_R - 0.01, y) ** 2
-        return ZG_ROOF - 0.012 + crown - side - f - r
-    hw = lambda y: 0.86 - 0.03 * smoothstep(Y_ROOF_F - 0.10, Y_ROOF_F + 0.03, y)
-    ys = [Y_CAB_R - 0.01 + k * (Y_ROOF_F + 0.03 - Y_CAB_R + 0.01) / 34 for k in range(35)]
-    outline = [(hw(y), y) for y in ys] + [(-hw(y), y) for y in reversed(ys)]
-    panel(mb, outline, lambda x, y: Vector((x, y, G(roof_z(x, y)))), "paint", "chassis", out=(0, 0, 1), spacing=0.04,
-          flange=(0.06, lambda p: Vector((0.5 * (1 if p.x > 0 else -1), 0, -1)).normalized()))
-    mirror_side(mb, lambda m: m.tube([(0.835, Y_ROOF_F - 0.04, G(ZG_ROOF - 0.055)),
-                                      (0.85, Y_CAB_R + 0.03, G(ZG_ROOF - 0.06))], 0.008, "gloss_black", "chassis", seg=6))
+    def ws_outline(inset):
+        ya = ws_top_y(0.0) + inset
+        pts_top = []
+        for k in range(25):
+            x = -0.80 + 1.60 * k / 24
+            pts_top.append((x, ws_top_y(x) + inset))
+        top = [(x, y) for x, y in pts_top if abs(x) <= ws_side(y, inset)]
+        y0 = top[-1][1]
+        right = [(ws_side(y, inset), y) for y in [y0 + (y_hi - 0.004 - y0) * k / 20 for k in range(21)]]
+        left = [(-x, y) for x, y in reversed(right)]
+        return top + right + left, ya
 
-    def side_glass(m, s):
-        def pane(pts2d, bone):
-            def pt(u, v):
-                (y0, z0), (y1, z1), (y2, z2), (y3, z3) = pts2d
-                yb, zb = y0 + (y1 - y0) * u, z0 + (z1 - z0) * u
-                yt, zt = y3 + (y2 - y3) * u, z3 + (z2 - z3) * u
-                y, zg = yb + (yt - yb) * v, zb + (zt - zb) * v
-                return Vector((glass_x(zg), y, G(zg)))
-            _glass_grid(m, pt, bone, out=Vector((1, 0, 0.1)), nu=4, nv=4, centered=False)
-        zt = 1.90
-        pane([(Y_FDOOR_F - 0.13, ZG_BELT + 0.01), (Y_FDOOR_R + 0.025, ZG_BELT + 0.01), (Y_FDOOR_R + 0.025, zt),
-              (a_pillar_y(zt) - 0.03, zt)], f"window_{s}f")
-        pane([(Y_RDOOR_F - 0.025, ZG_BELT + 0.01), (Y_RDOOR_R + 0.03, ZG_BELT + 0.01), (Y_RDOOR_R + 0.06, zt),
-              (Y_RDOOR_F - 0.025, zt)], f"window_{s}r")
-        m.loft([[(0.955, Y_FDOOR_F - 0.02, G(ZG_BELT)), (0.955, Y_FDOOR_F - 0.135, G(ZG_BELT)),
-                 (glass_x(1.60), a_pillar_y(1.60) - 0.015, G(1.60))],
-                [(0.935, Y_FDOOR_F - 0.02, G(ZG_BELT)), (0.935, Y_FDOOR_F - 0.135, G(ZG_BELT)),
-                 (glass_x(1.60) - 0.02, a_pillar_y(1.60) - 0.015, G(1.60))]], "gloss_black", f"door_{s}side_f")
-    side_glass(mb, "p")
-    with mb.mirrored():
-        side_glass(mb, "d")
+    glass, _ = ws_outline(FRIT)
+    frit, _ = ws_outline(0.0)
 
+    def region(x, y):
+        if point_in_poly((x, y), glass):
+            return "glass", "windscreen"
+        if point_in_poly((x, y), frit):
+            return "gloss_black", "chassis"
+        return "paint", "chassis"
+    lift = lambda x, y: Vector((x, y, G(gh_z(x, y))))
+    panel(mb, outline, lift, "paint", "chassis", out=(0, 0.3, 1), spacing=0.035,
+          creases=[glass + glass[:1], frit + frit[:1]], regions=region,
+          flange=(0.05, lambda p: Vector((0.6 * (1 if p.x > 0 else -1), 0, -1)).normalized()))
+    # inner face of the windshield
+    panel(mb, glass, lambda x, y: lift(x, y) - Vector((0, 0.003, 0.005)), "glass_in", "windscreen", out=(0, -0.3, -1),
+          spacing=0.08)
+    # drip moulding along the roof side
+    mirror_side(mb, lambda m: m.tube([(glass_x(gh_side_z(y)) + 0.004, y, G(gh_side_z(y) + 0.004))
+                                      for y in (Y_CAB_R + 0.03, -0.3, 0.2, Y_ROOF_F, Y_ROOF_F + 0.12)],
+                                     0.007, "gloss_black", "chassis", seg=6))
+    mirror_side(mb, _side_glass)
+
+
+def _back_glass(mb):
     def bg(u, v):
         zg = 1.49 + v * (1.875 - 1.49)
         return Vector((u * (0.70 - 0.05 * v), Y_CAB_R - 0.012 - 0.012 * v, G(zg)))

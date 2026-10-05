@@ -30,7 +30,10 @@ Y_FDOOR_F, Y_FDOOR_R = 1.460, 0.318
 Y_RDOOR_F, Y_RDOOR_R = 0.306, -0.700
 Y_CAB_R = -0.850
 Y_BED_F, Y_BED_R = -0.875, -2.797
-Y_ROOF_F = 0.960
+Y_ROOF_F = 0.600         # roof front corner above the side glass (top of the A-pillar)
+Y_WS_TOP = 0.880         # windshield top on the centreline (the top edge wraps back to the pillars in plan)
+ZG_WS_TOP = 1.930
+WS_HW_BASE, WS_HW_TOP = 0.900, 0.720
 CAB_SHIFT = 0.30         # interior moved forward with the cab (relative to the first layout)
 
 # heights above ground
@@ -171,5 +174,22 @@ def glass_x(zg):
 
 
 def a_pillar_y(zg):
-    t = (zg - ZG_BELT) / (1.925 - ZG_BELT)
-    return Y_WS - (Y_WS - Y_ROOF_F) * t
+    """Rear edge of the A-pillar in side view (= front edge of the door glass). Photo 02: ~59 deg from vertical."""
+    t = (zg - ZG_BELT) / (ZG_WS_TOP - ZG_BELT)
+    return 1.400 - (1.400 - Y_ROOF_F) * t
+
+
+def ws_edge_y(zg):
+    """Front edge of the A-pillar (= windshield side edge)."""
+    return a_pillar_y(zg) + 0.09
+
+
+def ws_hw(zg):
+    t = (zg - ZG_BELT) / (ZG_WS_TOP - ZG_BELT)
+    return WS_HW_BASE + (WS_HW_TOP - WS_HW_BASE) * t
+
+
+def roof_front_y(x):
+    """Roof front edge in plan: on the centreline above the windshield, sweeping back to the A-pillar tops."""
+    t = min(1.0, abs(x) / 0.84)
+    return Y_WS_TOP + 0.01 - (Y_WS_TOP + 0.01 - Y_ROOF_F) * t * t

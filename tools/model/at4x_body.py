@@ -169,7 +169,7 @@ def exhaust_tips(mb):
 def interior(mb):
     """Cabin shell parts that follow the cab layout directly (floor, headliner, back wall trim)."""
     mb.box((-0.90, Y_CAB_R + 0.02, G(0.62)), (0.90, Y_WS - 0.04, G(0.66)), "carpet", "chassis")
-    mb.box((-0.84, Y_CAB_R + 0.03, G(1.935)), (0.84, Y_ROOF_F, G(1.95)), "carpet", "chassis")
+    mb.box((-0.84, Y_CAB_R + 0.03, G(1.935)), (0.84, Y_WS_TOP - 0.12, G(1.95)), "carpet", "chassis")
     mb.box((-0.90, Y_CAB_R + 0.005, G(0.66)), (0.90, Y_CAB_R + 0.03, G(1.47)), "trim", "chassis")
 
 

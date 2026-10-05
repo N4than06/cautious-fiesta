@@ -115,7 +115,7 @@ def _dist_to_poly(p, poly):
 # ---------------------------------------------------------------------------------------------- panel
 
 def panel(mb, outline, lift, mat, bone, out, spacing=0.03, holes=(), creases=(), flange=None, light=None,
-          flange_mat=None, uvs=1.0, double=False):
+          flange_mat=None, uvs=1.0, double=False, regions=None):
     """Triangulate `outline` (minus `holes`) with interior points every `spacing`, lift into 3D.
 
     lift(u, v) -> Vector: maps a 2D drawing-plane point to 3D.
@@ -123,6 +123,9 @@ def panel(mb, outline, lift, mat, bone, out, spacing=0.03, holes=(), creases=(),
     creases: open polylines (2D) the mesh must contain as edges.
     flange: (depth, direction_fn) — direction_fn(point3d) -> unit Vector pointing into the body; the outline and
             hole edges get a folded-back strip of that depth.
+    regions: optional fn(u, v) -> (mat, bone) or None, evaluated at each triangle centroid, to split one continuous
+             surface into materials / skinning bones (glass in a roof skin, door frames vs. pillars). Put crease lines
+             on the region borders so no triangle straddles one. None drops the triangle.
     """
     outline = [tuple(p) for p in outline]
     holes = [[tuple(p) for p in h] for h in holes]
@@ -164,15 +167,27 @@ def panel(mb, outline, lift, mat, bone, out, spacing=0.03, holes=(), creases=(),
 
     out_fn = out if callable(out) else (lambda p, o=Vector(out): o)
     pts3 = [lift(p.x, p.y) for p in out_v]
-    ids = [mb._vert(p, bone) for p in pts3]
+    cache = {}
+
+    def vid(i, b):
+        if (i, b) not in cache:
+            cache[(i, b)] = mb._vert(pts3[i], b)
+        return cache[(i, b)]
     for f in keep:
+        fmat, fbone = mat, bone
+        if regions is not None:
+            c = sum((out_v[i] for i in f), Vector((0, 0))) / len(f)
+            r = regions(c.x, c.y)
+            if r is None:
+                continue
+            fmat, fbone = r
         a, b, c = (pts3[i] for i in f[:3])
-        tri = [ids[i] for i in f]
+        tri = [vid(i, fbone) for i in f]
         if (b - a).cross(c - a).dot(out_fn(a)) < 0:
             tri.reverse()
-        _oriented_face(mb, tri, mat, light, uvs)
+        _oriented_face(mb, tri, fmat, light, uvs)
         if double:
-            _oriented_face(mb, list(reversed(tri)), mat, light, uvs)
+            _oriented_face(mb, list(reversed(tri)), fmat, light, uvs)
 
     if flange:
         depth, dir_fn = flange
