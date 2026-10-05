@@ -1,6 +1,10 @@
 """Render preview images of the AT4X with Cycles (no Sollumz needed).
 
-    python tools/model/preview.py OUT_DIR [--color R,G,B]
+    python tools/model/preview.py OUT_DIR [--white] [--samples N] [--color R,G,B] [--views a,b]
+        [--res WxH] [--cam "name:lx,ly,lz,tx,ty,tz,lens;..."] [--compare PHOTO_DIR 02,06,03]
+
+--compare renders the calibrated cameras in reference_cameras.json and writes compare_K.jpg (photo | render) and
+blend_K.jpg (50/50 overlay). Model space: +Y forward, +X passenger side, ground at z = -0.80.
 """
 import math
 import os
@@ -246,6 +250,7 @@ def compare(out, photo_dir, keys):
         c.paste(a, (0, 0))
         c.paste(b, (1024, 0))
         c.save(os.path.join(out, f"compare_{k}.jpg"), quality=90)
+        Image.blend(a, b.resize(a.size), 0.5).save(os.path.join(out, f"blend_{k}.jpg"), quality=90)
         print("compared", k, flush=True)
 
 
@@ -260,10 +265,19 @@ if __name__ == "__main__":
     textures.write_all(os.path.join(out, "_dds"), tex_png)
     build_scene(tex_png, rgb)
     studio = "white" if "--white" in sys.argv else "grey"
-    setup_render(samples=samples, studio=studio)
+    res = tuple(int(c) for c in sys.argv[sys.argv.index("--res") + 1].split("x")) if "--res" in sys.argv else (1600, 900)
+    setup_render(res=res, samples=samples, studio=studio)
     if "--compare" in sys.argv:
         compare(out, sys.argv[sys.argv.index("--compare") + 1], sys.argv[sys.argv.index("--compare") + 2].split(","))
         views = []
+    if "--cam" in sys.argv:
+        # ad-hoc cameras: --cam "name:lx,ly,lz,tx,ty,tz,lens;name2:..."
+        for spec in sys.argv[sys.argv.index("--cam") + 1].split(";"):
+            name, vals = spec.split(":")
+            v = [float(c) for c in vals.split(",")]
+            VIEWS[name] = (tuple(v[0:3]), tuple(v[3:6]), v[6])
+        if "--views" not in sys.argv:
+            views = [spec.split(":")[0] for spec in sys.argv[sys.argv.index("--cam") + 1].split(";")]
     for v in views:
         loc, tgt, lens = VIEWS[v]
         shoot(os.path.join(out, f"at4x_{v}.png"), loc, tgt, lens)
