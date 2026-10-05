@@ -2,3 +2,5 @@ scripts/build/bin/
 scripts/build/obj/
 __pycache__/
 __pycache__/
+tools/cwconv/bin/
+tools/cwconv/obj/
