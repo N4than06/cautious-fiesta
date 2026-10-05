@@ -183,14 +183,15 @@ def setup_render(res=(1600, 900), samples=48, studio="grey"):
         lo.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
 
 
-def shoot(path, loc, target=(0, 0, 0.1), lens=50):
+def shoot(path, loc, target=(0, 0, 0.1), lens=50, roll=0.0):
     cam_data = bpy.data.cameras.new("cam")
     cam_data.lens = lens
     cam = bpy.data.objects.new("cam", cam_data)
     bpy.context.collection.objects.link(cam)
     cam.location = loc
     d = Vector(target) - Vector(loc)
-    cam.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
+    rot = d.to_track_quat("-Z", "Y").to_matrix() @ Matrix.Rotation(roll, 3, "Z")
+    cam.rotation_euler = rot.to_euler()
     bpy.context.scene.camera = cam
     bpy.context.scene.render.filepath = path
     bpy.ops.render.render(write_still=True)
@@ -220,10 +221,20 @@ def compare(out, photo_dir, keys):
     from PIL import Image
     sc = bpy.context.scene
     sc.render.resolution_x, sc.render.resolution_y = 1024, 768
+    cams = {}
+    cam_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "reference_cameras.json")
+    if os.path.exists(cam_file):
+        import json
+        cams = json.load(open(cam_file))
     for k in keys:
-        loc, tgt, lens = PHOTO_CAMS[k]
+        roll = 0.0
+        if k in cams:
+            p = cams[k]["params"]
+            loc, tgt, roll, lens = p[0:3], p[3:6], p[6], p[7]
+        else:
+            loc, tgt, lens = PHOTO_CAMS[k]
         path = os.path.join(out, f"render_{k}.png")
-        shoot(path, loc, tgt, lens)
+        shoot(path, loc, tgt, lens, roll)
         a = Image.open(os.path.join(photo_dir, f"AT4X_{k}.jpg")).convert("RGB").resize((1024, 768))
         b = Image.open(path).convert("RGB")
         c = Image.new("RGB", (2048, 768), "white")

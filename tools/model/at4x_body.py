@@ -174,7 +174,7 @@ def interior(mb):
 
 
 def front_row(mb):
-    """Dashboard, console and front seats (authored around y=0; build_body moves them with the cab)."""
+    """Dashboard, console and front seats (authored around the original layout; build_body moves them)."""
     mb.loft([[(x, 1.215, G(z)) for x, z in rrect(0, 1.18, 0.90, 0.26, 0.05, 2)],
              [(x, 0.98, G(z)) for x, z in rrect(0, 1.20, 0.90, 0.22, 0.08, 2)],
              [(x, 0.90, G(z)) for x, z in rrect(0, 1.10, 0.86, 0.12, 0.06, 2)]], "trim", "chassis")

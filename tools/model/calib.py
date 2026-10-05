@@ -45,9 +45,10 @@ POINTS = {
         ("headlamp top outer", (402, 314), (-0.99, 2.79, G(1.30))),
         ("headlamp top inner", (256, 318), (-0.665, 2.81, G(1.30))),
         ("GMC emblem centre", (104, 336), (0.0, 2.86, G(1.12))),
-        ("roof front corner", (432, 150), (-0.80, Y_ROOF_F, G(1.955))),
-        ("cab roof rear corner", (700, 142), (-0.84, Y_CAB_R, G(ZG_ROOF))),
-        ("bed rear top corner", (912, 237), (-1.0, Y_BED_R, G(ZG_RAIL))),
+        ("roof front corner pass", (410, 150), (0.80, Y_ROOF_F, G(1.955))),
+        ("roof front corner driver", (605, 140), (-0.80, Y_ROOF_F, G(1.955))),
+        ("cab roof rear corner", (800, 155), (-0.84, Y_CAB_R, G(ZG_ROOF))),
+        ("bed rear top corner", (915, 247), (-1.0, Y_BED_R, G(ZG_RAIL))),
     ],
     "03": [  # rear three-quarter, passenger side
         ("rear wheel centre", (565, 535), (XW, RAX, WZ)),
@@ -78,9 +79,17 @@ def project(params, p):
 def solve(pts, x0):
     def err(params):
         lens = params[7]
-        e = 0.0 if 18 <= lens <= 60 else 1e5 * (min(abs(lens - 18), abs(lens - 60)) + 1)
-        if abs(params[6]) > 0.08:
+        e = 0.0 if 18 <= lens <= 150 else 1e5 * (min(abs(lens - 18), abs(lens - 150)) + 1)
+        if abs(params[6]) > 0.05:
             e += 1e5
+        # photographer constraints: camera 0.4-2.0 m above ground, aimed at the truck, < 15 m away
+        cz = params[2] - GROUND
+        if not 0.4 <= cz <= 2.0:
+            e += 2e4 * (min(abs(cz - 0.4), abs(cz - 2.0)) + 0.1)
+        if abs(params[5] - G(0.9)) > 0.8 or (params[3] ** 2 + params[4] ** 2) > 1.5 ** 2:
+            e += 2e4
+        if (params[0] ** 2 + params[1] ** 2) > 15 ** 2:
+            e += 2e4
         for _, uv, p in pts:
             q = project(params, p)
             if q is None:
@@ -103,9 +112,9 @@ def solve(pts, x0):
 
 
 GUESS = {
-    "02": [6.2, 1.4, 2.1, 0, 0.0, 0.33, 0, 32],
-    "06": [-3.2, 5.2, 0.7, 0, 0.0, 0.1, 0, 38],
-    "03": [1.4, -7.0, 1.2, 0, 0.0, -0.06, 0, 47],
+    "02": [9.0, 1.6, 0.4, 0, 0.0, 0.1, 0, 45],
+    "06": [-3.5, 5.5, 0.3, 0, 0.0, 0.1, 0, 35],
+    "03": [3.5, -5.0, 0.8, 0, -0.3, 0.1, 0, 32],
 }
 
 if __name__ == "__main__":
