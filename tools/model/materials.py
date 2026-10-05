@@ -52,6 +52,8 @@ SPEC = {
     "alu": _m("vehicle_mesh", "at4x_alu"),
     "red": _m("vehicle_mesh", "at4x_red"),
     "gold": _m("vehicle_mesh", "at4x_gold"),
+    "titanium": _m("vehicle_mesh", "at4x_titanium"),
+    "plate": _m("vehicle_mesh", "at4x_plate", spec="at4x_spec_low"),
     "grille": _m("vehicle_mesh", "at4x_grille", spec="at4x_spec_low"),
     "mesh": _m("vehicle_mesh", "at4x_mesh", spec="at4x_spec_low"),
     "bedliner": _m("vehicle_mesh", "at4x_bedliner", spec="at4x_spec_low"),

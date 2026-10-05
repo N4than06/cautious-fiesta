@@ -88,11 +88,28 @@ def lens(c, n=32, ribs=True):
     return img
 
 
-def badge_gmc(w=256, h=128):
-    img = Image.new("RGBA", (w, h), (150, 12, 18, 255))
+def badge_gmc(w=512, h=128):
+    """GMC emblem: red letters with a bright chrome outline on a transparent background."""
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    font = ImageFont.load_default(size=118)
     d = ImageDraw.Draw(img)
-    d.rectangle([3, 3, w - 4, h - 4], outline=(200, 200, 205, 255), width=6)
-    _text(img, (w / 2, h / 2 + 4), "GMC", 92, (24, 24, 26, 255), stroke=3, stroke_fill=(210, 210, 215, 255))
+    d.text((w / 2, h / 2 + 6), "GMC", font=font, fill=(196, 16, 24, 255), anchor="mm", stroke_width=6,
+           stroke_fill=(222, 224, 228, 255))
+    # stretch horizontally like the real wide emblem
+    bbox = img.getbbox()
+    if bbox:
+        crop = img.crop(bbox).resize((w - 8, h - 8), Image.LANCZOS)
+        img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        img.paste(crop, (4, 4))
+    return img
+
+
+def plate(w=256, h=128):
+    img = Image.new("RGBA", (w, h), (236, 238, 240, 255))
+    d = ImageDraw.Draw(img)
+    d.rectangle([2, 2, w - 3, h - 3], outline=(40, 60, 120, 255), width=4)
+    _text(img, (w / 2, 22), "SAN ANDREAS", 18, (40, 60, 120, 255))
+    _text(img, (w / 2, h / 2 + 10), "AT4X 22", 54, (24, 40, 110, 255))
     return img
 
 
@@ -177,6 +194,8 @@ def all_textures():
         "at4x_carpet": grain((26, 26, 28, 255), 12, amp=12),
         "at4x_bedliner": bedliner(),
         "at4x_badge_gmc": badge_gmc(),
+        "at4x_plate": plate(),
+        "at4x_titanium": grain((68, 78, 92, 255), 13, amp=6),
         "at4x_badge_at4x": badge_at4x(),
         "at4x_badge_sierra": badge_sierra(),
         "at4x_dash": dash(),

@@ -27,6 +27,8 @@ LOOK = {
     "alu": ("at4x_alu", None, 0.9, 0.35, 0),
     "red": (None, (0.55, 0.01, 0.015), 0.1, 0.3, 0),
     "gold": (None, (0.75, 0.55, 0.12), 1.0, 0.25, 0),
+    "titanium": (None, (0.07, 0.09, 0.12), 0.9, 0.28, 0),
+    "plate": ("at4x_plate", None, 0.0, 0.4, 0),
     "grille": ("at4x_grille", None, 0.3, 0.4, 0),
     "mesh": ("at4x_mesh", None, 0.3, 0.4, 0),
     "bedliner": ("at4x_bedliner", None, 0.0, 0.9, 0),
@@ -38,8 +40,8 @@ LOOK = {
     "sidewall_rwl": ("at4x_sidewall_rwl", None, 0.0, 0.8, 0),
     "rim": (None, (0.03, 0.03, 0.035), 0.5, 0.35, 0),
     "rim_black": (None, (0.02, 0.02, 0.02), 0.3, 0.4, 0),
-    "glass": (None, (0.02, 0.025, 0.03), 0.0, 0.02, 0),
-    "glass_in": (None, (0.02, 0.025, 0.03), 0.0, 0.02, 0),
+    "glass": (None, (0.015, 0.018, 0.02), 0.0, 0.02, 0),
+    "glass_in": (None, (0.015, 0.018, 0.02), 0.0, 0.02, 0),
     "light_clear": (None, (0.9, 0.92, 0.95), 0.0, 0.05, 2.0),
     "light_led": (None, (1.0, 1.0, 1.0), 0.0, 0.05, 6.0),
     "light_red": (None, (0.6, 0.01, 0.01), 0.0, 0.1, 1.5),
@@ -77,8 +79,9 @@ class PreviewMaterials(dict):
             uv.uv_map = "UVMap 0"
             nt.links.new(uv.outputs[0], node.inputs[0])
             nt.links.new(node.outputs["Color"], bsdf.inputs["Base Color"])
-            if key.startswith("badge") or key == "badge_sierra":
+            if key.startswith("badge"):
                 nt.links.new(node.outputs["Alpha"], bsdf.inputs["Alpha"])
+                m.blend_method = "BLEND" if hasattr(m, "blend_method") else None
         else:
             bsdf.inputs["Base Color"].default_value = (*col, 1)
         bsdf.inputs["Metallic"].default_value = met
@@ -135,21 +138,26 @@ def setup_render(res=(1600, 900), samples=48):
     sc.world = world
     world.use_nodes = True
     bg = world.node_tree.nodes["Background"]
-    sky = world.node_tree.nodes.new("ShaderNodeTexSky")
-    sky.sky_type = "NISHITA" if hasattr(sky, "sky_type") else sky.sky_type
-    try:
-        sky.sun_elevation = math.radians(35)
-        sky.sun_rotation = math.radians(140)
-    except Exception:
-        pass
-    world.node_tree.links.new(sky.outputs[0], bg.inputs[0])
-    bg.inputs[1].default_value = 0.08
+    # neutral studio gradient: bright overhead, darker horizon
+    grad = world.node_tree.nodes.new("ShaderNodeTexGradient")
+    coord = world.node_tree.nodes.new("ShaderNodeTexCoord")
+    mapn = world.node_tree.nodes.new("ShaderNodeMapping")
+    mapn.inputs["Rotation"].default_value = (0, math.radians(-90), 0)
+    ramp = world.node_tree.nodes.new("ShaderNodeValToRGB")
+    ramp.color_ramp.elements[0].color = (0.30, 0.31, 0.33, 1)
+    ramp.color_ramp.elements[1].color = (0.95, 0.96, 0.98, 1)
+    nt = world.node_tree
+    nt.links.new(coord.outputs["Generated"], mapn.inputs["Vector"])
+    nt.links.new(mapn.outputs["Vector"], grad.inputs["Vector"])
+    nt.links.new(grad.outputs["Fac"], ramp.inputs["Fac"])
+    nt.links.new(ramp.outputs["Color"], bg.inputs["Color"])
+    bg.inputs[1].default_value = 0.9
     # ground
     bpy.ops.mesh.primitive_plane_add(size=60, location=(0, 0, body.GROUND))
     g = bpy.context.object
     gm = bpy.data.materials.new("ground")
     gm.use_nodes = True
-    gm.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.12, 0.115, 0.11, 1)
+    gm.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (0.18, 0.18, 0.18, 1)
     gm.node_tree.nodes["Principled BSDF"].inputs["Roughness"].default_value = 0.9
     g.data.materials.append(gm)
     sun = bpy.data.lights.new("sun", "SUN")
