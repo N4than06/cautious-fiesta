@@ -21,7 +21,9 @@ import bmesh  # noqa: E402
 from mathutils import Matrix, Vector  # noqa: E402
 
 import at4x_body as body  # noqa: E402
+import ext_cab  # noqa: E402
 import ext_front  # noqa: E402
+import ext_rear  # noqa: E402
 import materials  # noqa: E402
 import sz  # noqa: E402
 import textures  # noqa: E402
@@ -39,7 +41,12 @@ CUT_FRONT = {"misc_a": 2.10, "misc_b": 2.10}
 COVER_TRIM = ("bodyshell", "chassis", "misc_a", "misc_b")
 
 # tools/model bone -> donor bone
-BONE_MAP = {"misc_c": "grill", "misc_g": "bumper_f", "bonnet": "bonnet", "bumper_f": "bumper_f"}
+BONE_MAP = {"misc_c": "grill", "misc_g": "bumper_f", "bonnet": "bonnet", "bumper_f": "bumper_f",
+            "bumper_r": "bumper_r", "boot": "boot", "misc_j": "boot"}
+# donor rear parts replaced by the 2022 AT4X taillamps and rear bumper
+# (the donor taillamps are kept: the 2022 housing is unchanged and the donor lamps fit their bedside pockets exactly;
+#  the visible chrome exhaust tip goes -- the AT4X exits are tucked behind the bumper)
+REMOVE_REAR = ["bumper_r", "misc_grip", "exhaust"]
 
 
 def donor_bone_head(arm, name):
@@ -106,6 +113,7 @@ def cut_faces(obj, y_min):
 FENDER_Y0 = 1.245      # donor-space front door shut line: everything ahead of it on the outside is the new clip
 FENDER_X0 = 0.70
 FENDER_Z0 = -0.36
+HOOD_CUT_Y, HOOD_CUT_Z = 1.50, 0.36     # donor hood-edge seals / fender lips under the new hood and fender tops
 
 
 def cut_region(obj, pred):
@@ -126,7 +134,7 @@ def cut_region(obj, pred):
     return total
 
 
-def cut_covered(obj, bvh, y_min, reach=0.12, eps=0.012):
+def cut_covered(obj, bvh, y_min, reach=0.12, eps=0.012, where=None):
     """Delete donor faces (ahead of y_min) that the new parts cover: a ray from the face along its normal hits the
     new geometry within `reach`, or the new geometry lies just behind it (coincident / z-fighting)."""
     LOD = sz.SZ["LODLevel"]
@@ -142,7 +150,7 @@ def cut_covered(obj, bvh, y_min, reach=0.12, eps=0.012):
         dead = []
         for f in bm.faces:
             c = mw @ f.calc_center_median()
-            if c.y < y_min:
+            if c.y < y_min or (where is not None and not where(c)):
                 continue
             n = (nm @ f.normal).normalized()
             hit = bvh.ray_cast(c - n * 0.004, n, reach)[0]
@@ -154,6 +162,101 @@ def cut_covered(obj, bvh, y_min, reach=0.12, eps=0.012):
         bm.to_mesh(mesh)
         bm.free()
     return total
+
+
+def smooth_normals(mesh, groups, weld=2e-4, angle=48.0):
+    """Weld duplicate vertices and rebuild shading normals weighted by face area, so black paint reflects
+    smoothly across the generated panels (the raw CDT triangulation gives blotchy normals)."""
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=weld)
+    bm.to_mesh(mesh)
+    bm.free()
+    mesh.shade_smooth()
+    obj = bpy.data.objects.new("_wn", mesh)
+    for g in groups:
+        if g not in obj.vertex_groups:
+            obj.vertex_groups.new(name=g)
+    bpy.context.collection.objects.link(obj)
+    if hasattr(mesh, "set_sharp_from_angle"):
+        mesh.set_sharp_from_angle(angle=__import__("math").radians(angle))
+    mod = obj.modifiers.new("wn", "WEIGHTED_NORMAL")
+    mod.mode = "FACE_AREA"
+    mod.keep_sharp = True
+    dg = bpy.context.evaluated_depsgraph_get()
+    out = bpy.data.meshes.new_from_object(obj.evaluated_get(dg), preserve_all_data_layers=True, depsgraph=dg)
+    bpy.data.objects.remove(obj)
+    out.name = mesh.name
+    return out
+
+
+def analytic_hood_normals(mesh, T, bone_index, h=0.004):
+    """Shading normals of the hood skin straight from ext_front.hood_z (model space), so reflections follow the
+    designed surface instead of the triangulation."""
+    Ti = T.inverted()
+    paint_slots = {i for i, m in enumerate(mesh.materials) if m is not None and
+                   ("PEARLESCENT" in m.name or m.name.split(".")[0] == "paint")}
+    on_hood = [any(g.group == bone_index and g.weight > 0.5 for g in v.groups) for v in mesh.vertices]
+    try:
+        normals = [list(n.vector) for n in mesh.corner_normals]
+    except AttributeError:
+        mesh.calc_normals_split()
+        normals = [list(l.normal) for l in mesh.loops]
+    changed = 0
+    for poly in mesh.polygons:
+        if poly.material_index not in paint_slots or poly.normal.z < 0.3:
+            continue
+        for li in poly.loop_indices:
+            vi = mesh.loops[li].vertex_index
+            if not on_hood[vi]:
+                continue
+            m = Ti @ mesh.vertices[vi].co
+            dzdx = (ext_front.hood_z(m.x + h, m.y) - ext_front.hood_z(m.x - h, m.y)) / (2 * h)
+            dzdy = (ext_front.hood_z(m.x, m.y + h) - ext_front.hood_z(m.x, m.y - h)) / (2 * h)
+            normals[li] = list(Vector((-dzdx, -dzdy, 1.0)).normalized())
+            changed += 1
+    mesh.normals_split_custom_set(normals)
+    return changed
+
+
+def graft(name, builders, T, mats, gi, arm, drawable, models, trim_pred=None, donor_paint=None):
+    """Build tools/model parts in donor space as one skinned drawable model; trim donor faces they cover."""
+    LOD = sz.SZ["LODLevel"]
+    mb = MeshBuilder()
+    with mb.push_ctx(T):
+        for fn in builders:
+            fn(mb)
+    mesh = mb.to_mesh(name, mats, group_index=gi)
+    finalize_mesh(mesh)
+    add_uv2(mesh)
+    mesh = smooth_normals(mesh, [b.name for b in arm.data.bones])
+    if donor_paint is not None:
+        for i, m in enumerate(mesh.materials):
+            if m is not None and m.name.split(".")[0] == "paint":
+                mesh.materials[i] = donor_paint
+    if trim_pred is not None:
+        from mathutils.bvhtree import BVHTree
+        bm = bmesh.new()
+        bm.from_mesh(mesh)
+        bvh = BVHTree.FromBMesh(bm)
+        bm.free()
+        for dn in COVER_TRIM:
+            if dn in models:
+                n = cut_covered(models[dn], bvh, -99.0, reach=0.03, where=trim_pred)
+                print(f"{name}: trimmed {n} covered faces from {dn}", flush=True)
+    obj = bpy.data.objects.new(name, mesh)
+    for b in arm.data.bones:
+        if b.name not in obj.vertex_groups:
+            obj.vertex_groups.new(name=b.name)
+    obj.sollum_type = sz.SZ["SollumType"].DRAWABLE_MODEL
+    bpy.context.collection.objects.link(obj)
+    obj.parent = drawable
+    for lod in (LOD.VERYHIGH, LOD.HIGH):
+        obj.sz_lods.get_lod(lod).mesh = mesh
+    obj.sz_lods.active_lod_level = LOD.HIGH
+    obj.modifiers.new("Armature", "ARMATURE").object = arm
+    print(f"{name}: {sum(len(p.vertices) - 2 for p in mesh.polygons)} triangles", flush=True)
+    return obj
 
 
 def main():
@@ -198,6 +301,10 @@ def main():
         ext_front.front_bumper(mb)
         ext_front.front_backing(mb)
     front = mb.to_mesh("at4x_front2022", mats, group_index=gi)
+    finalize_mesh(front)
+    add_uv2(front)
+    front = smooth_normals(front, [b.name for b in arm.data.bones])
+    print(f"hood: {analytic_hood_normals(front, T, gi['bonnet'])} analytic corner normals", flush=True)
     from mathutils.bvhtree import BVHTree
     bm = bmesh.new()
     bm.from_mesh(front)
@@ -205,11 +312,11 @@ def main():
     bm.free()
     for name in COVER_TRIM:
         if name in models:
-            n1 = cut_region(models[name], lambda c: c.y > FENDER_Y0 and abs(c.x) > FENDER_X0 and c.z > FENDER_Z0)
+            n1 = cut_region(models[name], lambda c: (c.y > FENDER_Y0 and abs(c.x) > FENDER_X0 and c.z > FENDER_Z0) or
+                                                     (c.y > HOOD_CUT_Y and c.z > HOOD_CUT_Z) or
+                                                     (c.y > 1.28 and abs(c.x) > 0.62 and 0.30 < c.z < 0.52))
             n2 = cut_covered(models[name], bvh, FENDER_Y0, reach=0.03)
             print(f"{name}: removed {n1} fender faces, {n2} covered faces", flush=True)
-    finalize_mesh(front)
-    add_uv2(front)
     # body-coloured parts use the donor's own paint material so the new panels match the old ones exactly
     donor_paint = next((m for m in models["bodyshell"].data.materials if m and "PEARLESCENT" in m.name), None)
     if donor_paint is not None:
@@ -242,6 +349,24 @@ def main():
                 wheel_obj.sz_lods.get_lod(lod).mesh = wm
         wheel_obj.data = wm
 
+    # ---- 2022 AT4X rear: LED taillamps, AT4X rear bumper; factory assist steps
+    for name in REMOVE_REAR:
+        o = models.pop(name, None)
+        if o is not None:
+            bpy.data.objects.remove(o)
+    rear = graft("at4x_rear_bumper", [ext_rear.rear_bumper], T, mats, gi, arm, drawable, models,
+                 donor_paint=donor_paint)
+    # straight cut of the donor bedside corners just under the new bumper's top edge (hidden behind it)
+    ys = [(rear.matrix_world @ v.co) for v in rear.data.vertices]
+    corner = [p for p in ys if abs(p.x) > 0.70]
+    z_top = max(p.z for p in corner)
+    y_front = min(p.y for p in corner)
+    for dn in ("bodyshell", "chassis"):
+        if dn in models:
+            n = cut_region(models[dn], lambda c: c.y < y_front + 0.02 and c.z < z_top - 0.015 and abs(c.x) > 0.55)
+            print(f"rear: removed {n} {dn} faces behind the bumper (top z {z_top:.3f}, front y {y_front:.3f})", flush=True)
+    graft("at4x_steps", [ext_cab.running_boards], T, mats, gi, arm, drawable, models)
+
     tris = sum(len(p.vertices) - 2 for p in front.polygons)
     print(f"front end: {tris} triangles", flush=True)
 
@@ -259,6 +384,20 @@ def main():
                 if name in ("wheel_rf", "wheel_rr"):
                     c.rotation_euler = (0, 0, 3.14159265)
                 bpy.context.collection.objects.link(c)
+        if "--satin" in sys.argv:     # satin black paint everywhere: compares new vs donor panels fairly
+            sat = bpy.data.materials.new("_satin")
+            sat.use_nodes = True
+            bsdf = sat.node_tree.nodes["Principled BSDF"]
+            bsdf.inputs["Base Color"].default_value = (0.012, 0.012, 0.013, 1)
+            bsdf.inputs["Roughness"].default_value = 0.22
+            bsdf.inputs["Coat Weight"].default_value = 0.6
+            bsdf.inputs["Coat Roughness"].default_value = 0.12
+            for o in bpy.data.objects:
+                if o.type == "MESH" and not o.hide_render:
+                    o.data = o.data.copy()
+                    for i, m in enumerate(o.data.materials):
+                        if m is not None and ("PEARLESCENT" in m.name or m.name.split(".")[0] == "paint"):
+                            o.data.materials[i] = sat
         if "--clay" in sys.argv:      # matte grey override: judge shape, not reflections
             clay = bpy.data.materials.new("_clay")
             clay.use_nodes = True
@@ -271,20 +410,35 @@ def main():
                     for i, m in enumerate(o.data.materials):
                         if m is None or "glass" not in m.name.lower():
                             o.data.materials[i] = clay
+        for pb in arm.pose.bones:            # joint limits pose the tailgate open in Blender; preview only
+            for c in pb.constraints:
+                c.mute = True
         preview.setup_render(res=(1280, 800), samples=16, studio="grey")
         ground = next(o for o in bpy.data.objects if o.name.startswith("Plane"))
         ground.location.z = donor_bone_head(arm, "wheel_lf").z - 0.386 * 1.0
-        rd = os.path.join(out_dir, "render_clay" if "--clay" in sys.argv else "render")
-        for name, (loc, tgt, lens) in {"front_34": ((6.4, 6.8, 1.2), (0, 0.4, 0.0), 50),
+        rd = os.path.join(out_dir, "render_clay" if "--clay" in sys.argv else
+                          "render_satin" if "--satin" in sys.argv else "render")
+        views = {"front_34": ((6.4, 6.8, 1.2), (0, 0.4, 0.0), 50),
                                         "front": ((0.0, 9.0, 0.4), (0, 0, 0.1), 50),
                                         "side": ((9.5, 0.0, 0.5), (0, 0, 0.1), 50),
-                                        "rear_34": ((-6.0, -7.2, 1.8), (0, -0.4, 0.0), 50)}.items():
+                 "rear_34": ((-6.0, -7.2, 1.8), (0, -0.4, 0.0), 50)}
+        if "--views" in sys.argv:
+            views = {}
+            for spec in sys.argv[sys.argv.index("--views") + 1].split(";"):
+                nm, vals = spec.split(":")
+                v = [float(c) for c in vals.split(",")]
+                views[nm] = (tuple(v[0:3]), tuple(v[3:6]), v[6])
+        for name, (loc, tgt, lens) in views.items():
             preview.shoot(os.path.join(rd, f"{name}.png"), loc, tgt, lens)
             print("rendered", name, flush=True)
         for o in [o for o in bpy.data.objects if o.name.startswith("_prev_")]:
             bpy.data.objects.remove(o)
+        for pb in arm.pose.bones:
+            for c in pb.constraints:
+                c.mute = False
 
     if "--no-export" not in sys.argv:
+        arm.name = "at4x"            # model / txd name used by dlc/at4x (vehicles.meta modelName = at4x)
         sz.export_selected([arm], os.path.join(out_dir, "xml"))
     for level, msg in logs:
         if level == "error":

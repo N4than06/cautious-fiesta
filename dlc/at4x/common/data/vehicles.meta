@@ -18,7 +18,7 @@
       <ptfxAssetName>null</ptfxAssetName>
       <!-- Default engine note (V8 truck). The AT4X Garage script can swap this in-game. -->
       <audioNameHash>SANDKING</audioNameHash>
-      <layout>LAYOUT_RANGER</layout>
+      <layout>LAYOUT_BISON</layout>
       <coverBoundOffsets>STANDARD_COVER_OFFSET_INFO</coverBoundOffsets>
       <explosionInfo>EXPLOSION_INFO_DEFAULT</explosionInfo>
       <scenarioLayout />
@@ -47,8 +47,8 @@
       <AllowSundayDriving value="true" />
       <AllowBodyColorMapping value="true" />
       <!-- Re-measure from your model: wheel radius of the stock 33in tire setup. -->
-      <wheelScale value="0.310000" />
-      <wheelScaleRear value="0.310000" />
+      <wheelScale value="0.305000" />
+      <wheelScaleRear value="0.305000" />
       <dirtLevelMin value="0.000000" />
       <dirtLevelMax value="0.700000" />
       <envEffScaleMin value="0.000000" />
