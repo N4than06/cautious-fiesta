@@ -95,8 +95,11 @@ class PreviewMaterials(dict):
             bsdf.inputs["Coat Weight"].default_value = 1.0
             bsdf.inputs["Coat Roughness"].default_value = 0.03
         if key in ("glass", "glass_in"):
-            bsdf.inputs["Transmission Weight"].default_value = 0.6
-            bsdf.inputs["Alpha"].default_value = 0.75
+            # tinted automotive glass: you can see the cabin through it, as in the photos
+            bsdf.inputs["Base Color"].default_value = (0.42, 0.45, 0.46, 1)
+            bsdf.inputs["Transmission Weight"].default_value = 1.0
+            bsdf.inputs["Roughness"].default_value = 0.0
+            bsdf.inputs["IOR"].default_value = 1.52
         if emis:
             bsdf.inputs["Emission Color"].default_value = (*(col or (1, 1, 1)), 1)
             bsdf.inputs["Emission Strength"].default_value = emis
@@ -136,6 +139,9 @@ def setup_render(res=(1600, 900), samples=48, studio="grey"):
     sc.cycles.device = "CPU"
     sc.cycles.samples = samples
     sc.cycles.use_denoising = True
+    sc.cycles.caustics_reflective = False
+    sc.cycles.caustics_refractive = False
+    sc.cycles.blur_glossy = 1.0
     sc.render.resolution_x, sc.render.resolution_y = res
     sc.view_settings.view_transform = "AgX"
     sc.view_settings.look = "AgX - Medium High Contrast"
@@ -176,7 +182,8 @@ def setup_render(res=(1600, 900), samples=48, studio="grey"):
     so = bpy.data.objects.new("sun", sun)
     so.rotation_euler = (math.radians(50), 0, math.radians(140))
     bpy.context.collection.objects.link(so)
-    for loc, e in (((6, 6, 4), 250), ((-6, -5, 3), 150), ((-4, 7, 2), 120)):
+    _softboxes()
+    for loc, e in (((6, 6, 4), 160), ((-6, -5, 3), 100), ((-4, 7, 2), 80)):
         L = bpy.data.lights.new("area", "AREA")
         L.energy = e
         L.size = 4
@@ -185,6 +192,34 @@ def setup_render(res=(1600, 900), samples=48, studio="grey"):
         bpy.context.collection.objects.link(lo)
         d = Vector((0, 0, 0)) - Vector(loc)
         lo.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
+
+
+def _softboxes():
+    """Large emissive panels like a photo studio's softboxes: invisible to the camera, but they put long, clean
+    highlight bands on the paint so surface quality (crown, creases, wobble) is visible in every render."""
+    def panel(name, size, loc, normal, strength):
+        bpy.ops.mesh.primitive_plane_add(size=1.0, location=loc)
+        o = bpy.context.object
+        o.name = name
+        o.scale = (size[0], size[1], 1)
+        o.rotation_euler = Vector(normal).to_track_quat("Z", "Y").to_euler()
+        m = bpy.data.materials.new(name)
+        m.use_nodes = True
+        nt = m.node_tree
+        for n in list(nt.nodes):
+            nt.nodes.remove(n)
+        em = nt.nodes.new("ShaderNodeEmission")
+        em.inputs["Strength"].default_value = strength
+        out = nt.nodes.new("ShaderNodeOutputMaterial")
+        nt.links.new(em.outputs[0], out.inputs[0])
+        o.data.materials.append(m)
+        o.visible_camera = False
+        o.visible_shadow = False
+    panel("sb_top", (2.6, 7.5), (0, 0, 3.8), (0, 0, -1), 5.0)
+    for sx in (-1, 1):
+        panel(f"sb_side{sx}", (1.0, 6.5), (sx * 5.2, 0, 0.9), (-sx, 0, -0.15), 3.0)
+    for sy in (-1, 1):
+        panel(f"sb_end{sy}", (4.0, 1.2), (0, sy * 7.5, 1.4), (0, -sy, -0.25), 2.0)
 
 
 def shoot(path, loc, target=(0, 0, 0.1), lens=50, roll=0.0):
