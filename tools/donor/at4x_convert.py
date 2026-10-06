@@ -276,64 +276,67 @@ def main():
     T, s = solve_transform(arm, roof_z)
     print(f"graft transform: scale {s:.4f}, offset {tuple(round(v, 4) for v in T.translation)}", flush=True)
 
-    # ---- remove the 2019-21 front end
-    for name in REMOVE_MODELS:
-        o = models.pop(name, None)
-        if o is not None:
-            bpy.data.objects.remove(o)
-    for name, y_min in CUT_FRONT.items():
-        if name in models:
-            cut_faces(models[name], y_min)
-
-    # ---- 2022 AT4X front end (tools/model geometry, scaled into donor space)
+    stock = "--stock-body" in sys.argv      # donor body untouched; AT4X wheels only
     tex_dir = os.path.join(out_dir, "_dds")
     textures.write_all(tex_dir)
     mats = sz.Materials(materials.SPEC, sz.load_dds_images(tex_dir))
-    gi = GroupIndex(arm)
-    mb = MeshBuilder()
-    with mb.push_ctx(T):
-        ext_front.front_fender(mb)
-        ext_front.front_flares(mb)
-        ext_front.hood(mb)
-        ext_front.headlamps(mb)
-        ext_front.upper_fascia(mb)
-        ext_front.grille(mb)
-        ext_front.front_bumper(mb)
-        ext_front.front_backing(mb)
-    front = mb.to_mesh("at4x_front2022", mats, group_index=gi)
-    finalize_mesh(front)
-    add_uv2(front)
-    front = smooth_normals(front, [b.name for b in arm.data.bones])
-    print(f"hood: {analytic_hood_normals(front, T, gi['bonnet'])} analytic corner normals", flush=True)
-    from mathutils.bvhtree import BVHTree
-    bm = bmesh.new()
-    bm.from_mesh(front)
-    bvh = BVHTree.FromBMesh(bm)
-    bm.free()
-    for name in COVER_TRIM:
-        if name in models:
-            n1 = cut_region(models[name], lambda c: (c.y > FENDER_Y0 and abs(c.x) > FENDER_X0 and c.z > FENDER_Z0) or
-                                                     (c.y > HOOD_CUT_Y and c.z > HOOD_CUT_Z) or
-                                                     (c.y > 1.28 and abs(c.x) > 0.62 and 0.30 < c.z < 0.52))
-            n2 = cut_covered(models[name], bvh, FENDER_Y0, reach=0.03)
-            print(f"{name}: removed {n1} fender faces, {n2} covered faces", flush=True)
-    # body-coloured parts use the donor's own paint material so the new panels match the old ones exactly
-    donor_paint = next((m for m in models["bodyshell"].data.materials if m and "PEARLESCENT" in m.name), None)
-    if donor_paint is not None:
-        for i, m in enumerate(front.materials):
-            if m is not None and m.name.split(".")[0] == "paint":
-                front.materials[i] = donor_paint
-    obj = bpy.data.objects.new("at4x_front2022", front)
-    for b in arm.data.bones:
-        if b.name not in obj.vertex_groups:
-            obj.vertex_groups.new(name=b.name)
-    obj.sollum_type = sz.SZ["SollumType"].DRAWABLE_MODEL
-    bpy.context.collection.objects.link(obj)
-    obj.parent = drawable
-    for lod in (LOD.VERYHIGH, LOD.HIGH):
-        obj.sz_lods.get_lod(lod).mesh = front
-    obj.sz_lods.active_lod_level = LOD.HIGH
-    obj.modifiers.new("Armature", "ARMATURE").object = arm
+    front = None
+    if not stock:
+        # ---- remove the 2019-21 front end
+        for name in REMOVE_MODELS:
+            o = models.pop(name, None)
+            if o is not None:
+                bpy.data.objects.remove(o)
+        for name, y_min in CUT_FRONT.items():
+            if name in models:
+                cut_faces(models[name], y_min)
+
+        # ---- 2022 AT4X front end (tools/model geometry, scaled into donor space)
+        gi = GroupIndex(arm)
+        mb = MeshBuilder()
+        with mb.push_ctx(T):
+            ext_front.front_fender(mb)
+            ext_front.front_flares(mb)
+            ext_front.hood(mb)
+            ext_front.headlamps(mb)
+            ext_front.upper_fascia(mb)
+            ext_front.grille(mb)
+            ext_front.front_bumper(mb)
+            ext_front.front_backing(mb)
+        front = mb.to_mesh("at4x_front2022", mats, group_index=gi)
+        finalize_mesh(front)
+        add_uv2(front)
+        front = smooth_normals(front, [b.name for b in arm.data.bones])
+        print(f"hood: {analytic_hood_normals(front, T, gi['bonnet'])} analytic corner normals", flush=True)
+        from mathutils.bvhtree import BVHTree
+        bm = bmesh.new()
+        bm.from_mesh(front)
+        bvh = BVHTree.FromBMesh(bm)
+        bm.free()
+        for name in COVER_TRIM:
+            if name in models:
+                n1 = cut_region(models[name], lambda c: (c.y > FENDER_Y0 and abs(c.x) > FENDER_X0 and c.z > FENDER_Z0) or
+                                                         (c.y > HOOD_CUT_Y and c.z > HOOD_CUT_Z) or
+                                                         (c.y > 1.28 and abs(c.x) > 0.62 and 0.30 < c.z < 0.52))
+                n2 = cut_covered(models[name], bvh, FENDER_Y0, reach=0.03)
+                print(f"{name}: removed {n1} fender faces, {n2} covered faces", flush=True)
+        # body-coloured parts use the donor's own paint material so the new panels match the old ones exactly
+        donor_paint = next((m for m in models["bodyshell"].data.materials if m and "PEARLESCENT" in m.name), None)
+        if donor_paint is not None:
+            for i, m in enumerate(front.materials):
+                if m is not None and m.name.split(".")[0] == "paint":
+                    front.materials[i] = donor_paint
+        obj = bpy.data.objects.new("at4x_front2022", front)
+        for b in arm.data.bones:
+            if b.name not in obj.vertex_groups:
+                obj.vertex_groups.new(name=b.name)
+        obj.sollum_type = sz.SZ["SollumType"].DRAWABLE_MODEL
+        bpy.context.collection.objects.link(obj)
+        obj.parent = drawable
+        for lod in (LOD.VERYHIGH, LOD.HIGH):
+            obj.sz_lods.get_lod(lod).mesh = front
+        obj.sz_lods.active_lod_level = LOD.HIGH
+        obj.modifiers.new("Armature", "ARMATURE").object = arm
 
     # ---- factory AT4X wheel + tyre replaces the donor wheel (built around the wheel bone, scaled like the body)
     wheel_obj = models.get("wheel_lf.child")
@@ -349,26 +352,28 @@ def main():
                 wheel_obj.sz_lods.get_lod(lod).mesh = wm
         wheel_obj.data = wm
 
-    # ---- 2022 AT4X rear: LED taillamps, AT4X rear bumper; factory assist steps
-    for name in REMOVE_REAR:
-        o = models.pop(name, None)
-        if o is not None:
-            bpy.data.objects.remove(o)
-    rear = graft("at4x_rear_bumper", [ext_rear.rear_bumper], T, mats, gi, arm, drawable, models,
-                 donor_paint=donor_paint)
-    # straight cut of the donor bedside corners just under the new bumper's top edge (hidden behind it)
-    ys = [(rear.matrix_world @ v.co) for v in rear.data.vertices]
-    corner = [p for p in ys if abs(p.x) > 0.70]
-    z_top = max(p.z for p in corner)
-    y_front = min(p.y for p in corner)
-    for dn in ("bodyshell", "chassis"):
-        if dn in models:
-            n = cut_region(models[dn], lambda c: c.y < y_front + 0.02 and c.z < z_top - 0.015 and abs(c.x) > 0.55)
-            print(f"rear: removed {n} {dn} faces behind the bumper (top z {z_top:.3f}, front y {y_front:.3f})", flush=True)
-    graft("at4x_steps", [ext_cab.running_boards], T, mats, gi, arm, drawable, models)
+    if not stock:
+        # ---- 2022 AT4X rear: LED taillamps, AT4X rear bumper; factory assist steps
+        for name in REMOVE_REAR:
+            o = models.pop(name, None)
+            if o is not None:
+                bpy.data.objects.remove(o)
+        rear = graft("at4x_rear_bumper", [ext_rear.rear_bumper], T, mats, gi, arm, drawable, models,
+                     donor_paint=donor_paint)
+        # straight cut of the donor bedside corners just under the new bumper's top edge (hidden behind it)
+        ys = [(rear.matrix_world @ v.co) for v in rear.data.vertices]
+        corner = [p for p in ys if abs(p.x) > 0.70]
+        z_top = max(p.z for p in corner)
+        y_front = min(p.y for p in corner)
+        for dn in ("bodyshell", "chassis"):
+            if dn in models:
+                n = cut_region(models[dn], lambda c: c.y < y_front + 0.02 and c.z < z_top - 0.015 and abs(c.x) > 0.55)
+                print(f"rear: removed {n} {dn} faces behind the bumper (top z {z_top:.3f}, front y {y_front:.3f})", flush=True)
+        graft("at4x_steps", [ext_cab.running_boards], T, mats, gi, arm, drawable, models)
 
-    tris = sum(len(p.vertices) - 2 for p in front.polygons)
-    print(f"front end: {tris} triangles", flush=True)
+    if front is not None:
+        tris = sum(len(p.vertices) - 2 for p in front.polygons)
+        print(f"front end: {tris} triangles", flush=True)
 
     if "--render" in sys.argv:
         import preview
