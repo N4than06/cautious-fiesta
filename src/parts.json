@@ -1,0 +1,279 @@
+{
+  "_comment": "Master parts catalog for the GMC Sierra AT4X add-on. Edit this file, then run `python3 tools/build.py` to regenerate carcols.meta, the in-game text (global.gxt2 / .oxt) and the model checklist. Order matters: a part's in-game index is its position inside its slot.",
+
+  "vehicle": {
+    "model": "at4x",
+    "gameName": "AT4X",
+    "displayName": "Sierra 1500 AT4X",
+    "makeName": "GMC",
+    "makeDisplay": "GMC"
+  },
+
+  "kit": { "name": "4210_at4x_modkit", "id": 4210 },
+
+  "slots": [
+    {
+      "type": "VMT_BUMPER_F", "code": "FB", "slotName": "Front Bumper",
+      "bone": "bumper_f", "collisionBone": "bumper_f", "turnOffBones": ["bumper_f"], "cameraPos": "VMCP_FRONT",
+      "parts": [
+        { "model": "at4x_fb_aev",     "name": "AEV Steel Front Bumper" },
+        { "model": "at4x_fb_winch",   "name": "Steel Winch Bumper + 12k lb Winch" },
+        { "model": "at4x_fb_prerun",  "name": "Prerunner Tube Bumper" },
+        { "model": "at4x_fb_bullbar", "name": "Bull Bar w/ Light Hoop" },
+        { "model": "at4x_fb_denali",  "name": "Denali Chrome Bumper" }
+      ]
+    },
+    {
+      "type": "VMT_BUMPER_R", "code": "RB", "slotName": "Rear Bumper",
+      "bone": "bumper_r", "collisionBone": "bumper_r", "turnOffBones": ["bumper_r"], "cameraPos": "VMCP_REAR",
+      "parts": [
+        { "model": "at4x_rb_aev",     "name": "AEV Steel Rear Bumper" },
+        { "model": "at4x_rb_hiclear", "name": "High-Clearance Rear Bumper" },
+        { "model": "at4x_rb_tube",    "name": "Tube Bumper w/ Recovery Points" },
+        { "model": "at4x_rb_chrome",  "name": "Chrome Rear Bumper w/ Corner Steps" }
+      ]
+    },
+    {
+      "type": "VMT_SKIRT", "code": "PR", "slotName": "Running Boards / Power Rails",
+      "bone": "chassis", "collisionBone": "chassis", "turnOffBones": ["misc_a"], "cameraPos": "VMCP_DEFAULT",
+      "parts": [
+        { "model": "at4x_pr_rock",     "name": "AT4X Rock Rails" },
+        { "model": "at4x_pr_pwr_ret",  "name": "Power Rails - Black" },
+        { "model": "at4x_pr_pwr_mid",  "name": "Power Rails - Black (mid frame)" },
+        { "model": "at4x_pr_pwr_dep",  "name": "Power Rails - Black (deployed)" },
+        { "model": "at4x_pr_pwrc_ret", "name": "Power Rails - Chrome" },
+        { "model": "at4x_pr_pwrc_mid", "name": "Power Rails - Chrome (mid frame)" },
+        { "model": "at4x_pr_pwrc_dep", "name": "Power Rails - Chrome (deployed)" },
+        { "model": "at4x_pr_nerf",     "name": "Wheel-to-Wheel Nerf Bars" },
+        { "model": "at4x_pr_slider",   "name": "Rock Sliders w/ Kick-Out" },
+        { "model": "at4x_pr_delete",   "name": "Delete (Bare Pinch Welds)" }
+      ]
+    },
+    {
+      "type": "VMT_EXHAUST", "code": "EX", "slotName": "Exhaust",
+      "bone": "chassis", "collisionBone": "chassis", "turnOffBones": ["misc_b"], "cameraPos": "VMCP_REAR",
+      "parts": [
+        { "model": "at4x_ex_dualblk",  "name": "Dual Rear Exit - Black Tips" },
+        { "model": "at4x_ex_dualchr",  "name": "Dual Rear Exit - Polished 5in Tips" },
+        { "model": "at4x_ex_quad",     "name": "Quad-Tip Cat-Back" },
+        { "model": "at4x_ex_side",     "name": "Side Exit (Pre-Rear Tire)" },
+        { "model": "at4x_ex_turndown", "name": "Turn-Down Delete" },
+        { "model": "at4x_ex_burnt",    "name": "Burnt Titanium Tips" },
+        { "model": "at4x_ex_stacks",   "name": "Bed Stacks - 6in Mitered" },
+        { "model": "at4x_ex_hiclear",  "name": "High-Clearance Dump" }
+      ]
+    },
+    {
+      "type": "VMT_CHASSIS", "code": "RK", "slotName": "Bed Rack / Sport Bar",
+      "bone": "chassis", "collisionBone": "chassis", "turnOffBones": [], "cameraPos": "VMCP_REAR",
+      "parts": [
+        { "model": "at4x_rk_chase",    "name": "Chase Rack w/ Light Bar" },
+        { "model": "at4x_rk_overland", "name": "Overland Bed Rack" },
+        { "model": "at4x_rk_tent",     "name": "Overland Rack + Rooftop Tent" },
+        { "model": "at4x_rk_sportbar", "name": "Sport Bar w/ Light Pods" },
+        { "model": "at4x_rk_spare",    "name": "Chase Rack + Bed-Mounted Spare" }
+      ]
+    },
+    {
+      "type": "VMT_GRILL", "code": "GR", "slotName": "Grille",
+      "bone": "chassis", "collisionBone": "chassis", "turnOffBones": ["misc_c"], "cameraPos": "VMCP_FRONT",
+      "parts": [
+        { "model": "at4x_gr_blackout", "name": "Blacked-Out Lettering Grille" },
+        { "model": "at4x_gr_denali",   "name": "Denali Chrome Grille" },
+        { "model": "at4x_gr_retro",    "name": "Retro Lettered Grille" },
+        { "model": "at4x_gr_ledbar",   "name": "Grille w/ 20in LED Bar" },
+        { "model": "at4x_gr_amber",    "name": "Mesh Grille w/ Amber Markers" }
+      ]
+    },
+    {
+      "type": "VMT_BONNET", "code": "HD", "slotName": "Hood",
+      "bone": "bonnet", "collisionBone": "bonnet", "turnOffBones": ["bonnet"], "cameraPos": "VMCP_FRONT",
+      "parts": [
+        { "model": "at4x_hd_cowl",    "name": "Cowl Induction Hood" },
+        { "model": "at4x_hd_vented",  "name": "Heat-Extractor Vented Hood" },
+        { "model": "at4x_hd_carbon",  "name": "Carbon Fiber Hood" },
+        { "model": "at4x_hd_whipple", "name": "Whipple Cut-Out Hood" },
+        { "model": "at4x_hd_ramair",  "name": "Ram-Air Scoop Hood" }
+      ]
+    },
+    {
+      "type": "VMT_WING_L", "code": "FL", "slotName": "Fender Flares",
+      "bone": "chassis", "collisionBone": "chassis", "turnOffBones": ["misc_d"], "cameraPos": "VMCP_DEFAULT",
+      "parts": [
+        { "model": "at4x_fl_pocket", "name": "Pocket-Rivet Flares" },
+        { "model": "at4x_fl_ext",    "name": "Extended Coverage Flares" },
+        { "model": "at4x_fl_tube",   "name": "Tube Fenders" },
+        { "model": "at4x_fl_delete", "name": "Flare Delete" }
+      ]
+    },
+    {
+      "type": "VMT_WING_R", "code": "DL", "slotName": "Ditch Lights",
+      "bone": "chassis", "collisionBone": "chassis", "turnOffBones": [], "cameraPos": "VMCP_FRONT",
+      "parts": [
+        { "model": "at4x_dl_pods",  "name": "A-Pillar 3in LED Pods" },
+        { "model": "at4x_dl_amber", "name": "A-Pillar Amber Pods" },
+        { "model": "at4x_dl_quad",  "name": "Quad A-Pillar Pods" }
+      ]
+    },
+    {
+      "type": "VMT_ROOF", "code": "RF", "slotName": "Roof",
+      "bone": "chassis", "collisionBone": "chassis", "turnOffBones": [], "cameraPos": "VMCP_DEFAULT",
+      "parts": [
+        { "model": "at4x_rf_bar50",  "name": "50in LED Roof Bar" },
+        { "model": "at4x_rf_cab",    "name": "Cab Marker Lights" },
+        { "model": "at4x_rf_basket", "name": "Roof Basket" },
+        { "model": "at4x_rf_tent",   "name": "Roof-Top Tent" },
+        { "model": "at4x_rf_visor",  "name": "Light Visor w/ LED" }
+      ]
+    },
+    {
+      "type": "VMT_SPOILER", "code": "BD", "slotName": "Bed Cover / Cap",
+      "bone": "chassis", "collisionBone": "chassis", "turnOffBones": [], "cameraPos": "VMCP_REAR",
+      "parts": [
+        { "model": "at4x_bd_soft", "name": "Soft Tri-Fold Tonneau" },
+        { "model": "at4x_bd_hard", "name": "Hard Tri-Fold Tonneau" },
+        { "model": "at4x_bd_roll", "name": "Retractable Tonneau" },
+        { "model": "at4x_bd_cap",  "name": "Fiberglass Bed Cap" },
+        { "model": "at4x_bd_rack", "name": "Headache Rack" }
+      ]
+    },
+    {
+      "type": "VMT_PLTHOLDER", "code": "PL", "slotName": "Plate Mount",
+      "bone": "chassis", "collisionBone": "chassis", "turnOffBones": [], "cameraPos": "VMCP_FRONT",
+      "parts": [
+        { "model": "at4x_pl_relocate", "name": "Relocated Bumper Plate Mount" },
+        { "model": "at4x_pl_light",    "name": "Plate Mount w/ LED Pods" }
+      ]
+    },
+    {
+      "type": "VMT_TRUNK", "code": "TG", "slotName": "Tailgate",
+      "bone": "boot", "collisionBone": "boot", "turnOffBones": ["boot"], "cameraPos": "VMCP_REAR",
+      "parts": [
+        { "model": "at4x_tg_multipro", "name": "Multi-Function Tailgate" },
+        { "model": "at4x_tg_blackout", "name": "Blacked-Out Tailgate Lettering" },
+        { "model": "at4x_tg_net",      "name": "Tailgate Net" }
+      ]
+    },
+    {
+      "type": "VMT_ENGINEBAY1", "code": "SC", "slotName": "Supercharger",
+      "bone": "chassis", "collisionBone": "chassis", "turnOffBones": ["misc_e"], "cameraPos": "VMCP_FRONT",
+      "parts": [
+        { "model": "at4x_sc_whip_blk",  "name": "Whipple 3.0L - Black" },
+        { "model": "at4x_sc_whip_pol",  "name": "Whipple 3.0L - Polished" },
+        { "model": "at4x_sc_whip_red",  "name": "Whipple 3.0L - Red Cap" },
+        { "model": "at4x_sc_whip_carb", "name": "Whipple 3.0L - Carbon Lid" }
+      ]
+    },
+    {
+      "type": "VMT_ENGINEBAY2", "code": "IN", "slotName": "Air Intake",
+      "bone": "chassis", "collisionBone": "chassis", "turnOffBones": ["misc_f"], "cameraPos": "VMCP_FRONT",
+      "parts": [
+        { "model": "at4x_in_cai",  "name": "Cold Air Intake" },
+        { "model": "at4x_in_open", "name": "Open-Element Intake" },
+        { "model": "at4x_in_whip", "name": "Whipple Big-Mouth Intake" }
+      ]
+    },
+    {
+      "type": "VMT_ENGINEBAY3", "code": "ED", "slotName": "Engine Dress-Up",
+      "bone": "chassis", "collisionBone": "chassis", "turnOffBones": [], "cameraPos": "VMCP_FRONT",
+      "parts": [
+        { "model": "at4x_ed_brace", "name": "Strut Tower Brace" },
+        { "model": "at4x_ed_lines", "name": "Braided Lines + Billet Caps" },
+        { "model": "at4x_ed_cover", "name": "Painted Coil Covers" }
+      ]
+    },
+    {
+      "type": "VMT_CHASSIS2", "code": "SK", "slotName": "Skid Plates",
+      "bone": "chassis", "collisionBone": "chassis", "turnOffBones": ["misc_g"], "cameraPos": "VMCP_FRONT",
+      "parts": [
+        { "model": "at4x_sk_alu",    "name": "Full Aluminum Skids" },
+        { "model": "at4x_sk_steel",  "name": "Red Steel Skid Plates" },
+        { "model": "at4x_sk_delete", "name": "Skid Delete" }
+      ]
+    },
+    {
+      "type": "VMT_CHASSIS3", "code": "SN", "slotName": "Snorkel / Antennas",
+      "bone": "chassis", "collisionBone": "chassis", "turnOffBones": [], "cameraPos": "VMCP_DEFAULT",
+      "parts": [
+        { "model": "at4x_sn_snork", "name": "Snorkel" },
+        { "model": "at4x_sn_whips", "name": "LED Whip Antennas" },
+        { "model": "at4x_sn_both",  "name": "Snorkel + LED Whips" }
+      ]
+    },
+    {
+      "type": "VMT_CHASSIS4", "code": "MF", "slotName": "Mud Flaps",
+      "bone": "chassis", "collisionBone": "chassis", "turnOffBones": [], "cameraPos": "VMCP_REAR",
+      "parts": [
+        { "model": "at4x_mf_rally", "name": "Rally Mud Flaps" },
+        { "model": "at4x_mf_gmc",   "name": "Lettered Mud Flaps" }
+      ]
+    },
+    {
+      "type": "VMT_CHASSIS5", "code": "SP", "slotName": "Spare Tire",
+      "bone": "chassis", "collisionBone": "chassis", "turnOffBones": [], "cameraPos": "VMCP_REAR",
+      "parts": [
+        { "model": "at4x_sp_bed",  "name": "Bed-Mounted Spare" },
+        { "model": "at4x_sp_rack", "name": "Rack-Mounted Spare" }
+      ]
+    },
+    {
+      "type": "VMT_SEATS", "code": "ST", "slotName": "Seats",
+      "bone": "chassis", "collisionBone": "chassis", "turnOffBones": ["misc_h"], "cameraPos": "VMCP_DEFAULT",
+      "parts": [
+        { "model": "at4x_st_obsidian", "name": "Obsidian Leather w/ Red Stitch" },
+        { "model": "at4x_st_tan",      "name": "Jet Black / Tan Leather" },
+        { "model": "at4x_st_bucket",   "name": "Racing Buckets" }
+      ]
+    },
+    {
+      "type": "VMT_STEERING", "code": "SW", "slotName": "Steering Wheel",
+      "bone": "steeringwheel", "collisionBone": "steeringwheel", "turnOffBones": ["steeringwheel"], "cameraPos": "VMCP_DEFAULT",
+      "parts": [
+        { "model": "at4x_sw_heated", "name": "Heated Leather Wheel" },
+        { "model": "at4x_sw_carbon", "name": "Carbon / Suede Wheel" }
+      ]
+    },
+    {
+      "type": "VMT_INTERIOR1", "code": "TR", "slotName": "Interior Trim",
+      "bone": "chassis", "collisionBone": "chassis", "turnOffBones": ["misc_i"], "cameraPos": "VMCP_DEFAULT",
+      "parts": [
+        { "model": "at4x_tr_carbon", "name": "Carbon Fiber Trim" },
+        { "model": "at4x_tr_wood",   "name": "Open-Pore Wood Trim" },
+        { "model": "at4x_tr_red",    "name": "Red Accent Trim" }
+      ]
+    }
+  ],
+
+  "_statComment": "Stat upgrades. Suspension: positive = lower, negative = lift. Tune modifiers freely.",
+  "statMods": {
+    "VMT_ENGINE":     [25, 50, 75, 100],
+    "VMT_BRAKES":     [20, 50, 100],
+    "VMT_GEARBOX":    [20, 50, 100],
+    "VMT_SUSPENSION": [-20, -10, 5, 10],
+    "VMT_ARMOUR":     [20, 40, 60, 80, 100]
+  },
+  "horns": ["HORN_TRUCK", "HORN_COP", "HORN_CLOWN", "HORN_MUSICAL_1", "HORN_MUSICAL_2", "HORN_MUSICAL_3", "HORN_SAD_TROMBONE"],
+
+  "_powerRailsComment": "Each sequence: retracted -> (optional in-between frames) -> deployed. The garage script plays these frames when a door opens.",
+  "powerRails": [
+    ["at4x_pr_pwr_ret",  "at4x_pr_pwr_mid",  "at4x_pr_pwr_dep"],
+    ["at4x_pr_pwrc_ret", "at4x_pr_pwrc_mid", "at4x_pr_pwrc_dep"]
+  ],
+
+  "whipple": { "supercharger": "at4x_sc_whip_blk", "hood": "at4x_hd_whipple", "intake": "at4x_in_whip" },
+
+  "_wheelsComment": "Optional add-on rims (rim + tire are one model in GTA, so each tire size is its own entry). Only enable carcols_wheels.meta in content.xml once these models exist. rimRadius is the rim radius in metres.",
+  "wheels": {
+    "wheelType": 4,
+    "items": [
+      { "model": "at4x_whl_oem33",     "variation": "at4x_whl_oem33_b",     "name": "AT4X Factory 18in + 33in MT", "rimRadius": 0.2286 },
+      { "model": "at4x_whl_oem35",     "variation": "at4x_whl_oem35_b",     "name": "AT4X Factory 18in + 35in MT", "rimRadius": 0.2286 },
+      { "model": "at4x_whl_salta33",   "variation": "at4x_whl_salta33_b",   "name": "AEV Salta 18in + 33in MT", "rimRadius": 0.2286 },
+      { "model": "at4x_whl_salta35",   "variation": "at4x_whl_salta35_b",   "name": "AEV Salta 18in + 35in MT", "rimRadius": 0.2286 },
+      { "model": "at4x_whl_bead37",    "variation": "at4x_whl_bead37_b",    "name": "Six-Spoke Beadlock 17in + 37in", "rimRadius": 0.2159 },
+      { "model": "at4x_whl_steelie35", "variation": "at4x_whl_steelie35_b", "name": "Classic Steelie 17in + 35in AT", "rimRadius": 0.2159 },
+      { "model": "at4x_whl_forged22",  "variation": "at4x_whl_forged22_b",  "name": "Forged Monoblock 22in + 35in", "rimRadius": 0.2794 },
+      { "model": "at4x_whl_denali22",  "variation": "at4x_whl_denali22_b",  "name": "Denali 22in Polished + 33in AT", "rimRadius": 0.2794 }
+    ]
+  }
+}
